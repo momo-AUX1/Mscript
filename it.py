@@ -56,6 +56,7 @@ class MscriptInterpreter(LarkInterpreter):
         self.functions  = {}
 
     def start(self, tree):
+        """The main entry point for the interpreter."""
         for stmt in tree.children:
             if isinstance(stmt, Tree) and stmt.data == 'func_def':
                 self.visit(stmt)
@@ -68,12 +69,14 @@ class MscriptInterpreter(LarkInterpreter):
                     pass
 
     def assign(self, tree):
+        """Assign a value to a variable."""
         name_tok, expr = tree.children
         val = self.visit(expr)
         self.env[str(name_tok)] = val
         return val
 
     def index_assign(self, tree):
+        """Assign a value to an index in a list or dict."""
         container = self.visit(tree.children[0])
         idx       = self.visit(tree.children[1])
         val       = self.visit(tree.children[2])
@@ -81,11 +84,13 @@ class MscriptInterpreter(LarkInterpreter):
         return val
 
     def print_stmt(self, tree):
+        """Print the value of an expression."""
         vals = [self.visit(c) for c in tree.children]
         print(*vals)
         return vals[-1] if vals else None
     
     def input_expr(self, tree):
+        """Get user input."""
         tok = tree.children[0]
         if not isinstance(tok, Token):
             raise TypeError(f"Expected Token, got {type(tok).__name__}")
@@ -94,13 +99,16 @@ class MscriptInterpreter(LarkInterpreter):
 
 
     def expr_stmt(self, tree):
+        """Evaluate an expression."""
         return self.visit(tree.children[0])
 
     def return_stmt(self, tree):
+        """Return a value from a function."""
         val = self.visit(tree.children[0])
         raise ReturnException(val)
 
     def if_stmt(self, tree):
+        """Evaluate an if statement."""
         idx = 0
         n   = len(tree.children)
 
@@ -128,6 +136,7 @@ class MscriptInterpreter(LarkInterpreter):
             idx += 2
 
     def while_stmt(self, tree):
+        """Evaluate a while statement."""
         cond_tree = tree.children[0]
         block     = tree.children[1]
         while self.visit(cond_tree):
@@ -135,6 +144,7 @@ class MscriptInterpreter(LarkInterpreter):
                 self.visit(stmt)
 
     def for_stmt(self, tree):
+        """Evaluate a for statement."""
         var_tok  = tree.children[0]
         iterable = self.visit(tree.children[1])
         block    = tree.children[2]
@@ -144,6 +154,7 @@ class MscriptInterpreter(LarkInterpreter):
                 self.visit(stmt)
 
     def func_def(self, tree):
+        """Define a function."""
         name_tok = tree.children[0]
         params = []
         block  = None
@@ -160,6 +171,7 @@ class MscriptInterpreter(LarkInterpreter):
         self.functions[str(name_tok)] = (params, block)
 
     def func_call(self, tree):
+        """Evaluate a function call."""
         node = tree.children[0]
         if isinstance(node, Tree) and node.data in ("dotted_name", "dotted_name_expr"):
             parts = [str(tok) for tok in node.children]
@@ -321,6 +333,7 @@ class MscriptInterpreter(LarkInterpreter):
     def string( self, tree): return ast.literal_eval(tree.children[0])
     def bytes_literal(self, tree):  return ast.literal_eval(str(tree.children[0]))
     def var(    self, tree):
+        """Get the value of a variable."""
         name = str(tree.children[0])
         if name in self.env:        return self.env[name]
         if name in self.global_env: return self.global_env[name]
@@ -330,6 +343,7 @@ class MscriptInterpreter(LarkInterpreter):
         return [self.visit(c) for c in tree.children]
 
     def pair(self, tree):
+        """Parse a key-value pair."""
         k = self.visit(tree.children[0])
         v = self.visit(tree.children[1])
         return (k, v)
@@ -338,11 +352,13 @@ class MscriptInterpreter(LarkInterpreter):
         return dict(self.visit(c) for c in tree.children)
 
     def get_item(self, tree):
+        """Get an item from a list or dict."""
         container = self.visit(tree.children[0])
         idx       = self.visit(tree.children[1])
         return container[idx]
     
     def get_attr(self, tree):
+        """Get an attribute from an object."""
         obj  = self.visit(tree.children[0])
         attr = str(tree.children[1])
         if isinstance(obj, dict) and attr in obj:
@@ -377,6 +393,7 @@ class MscriptInterpreter(LarkInterpreter):
     
     
     def import_stmt(self, tree):
+        """Import a module or a function from a module."""
         node = tree.children[0]
         if isinstance(node, Tree) and node.data == 'dotted_name':
             names = [str(tok) for tok in node.children]
@@ -404,6 +421,7 @@ class MscriptInterpreter(LarkInterpreter):
                 self.functions[f"{name}.{fname}"] = (params, block)
     
     def dotted_name_expr(self, tree):
+        """Resolve a dotted name expression."""
         if (len(tree.children) == 1
             and isinstance(tree.children[0], Tree)
             and tree.children[0].data == 'dotted_name'):
@@ -428,7 +446,6 @@ class MscriptInterpreter(LarkInterpreter):
             else:
                 obj = getattr(obj, attr)
         return obj
-
 
 
 if __name__ == '__main__':
