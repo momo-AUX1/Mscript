@@ -1,0 +1,9 @@
+# testimport.mscript
+
+def hello() {
+    return "Hello from testimport!"
+}
+
+def add(a, b) {
+    return a + b
+}

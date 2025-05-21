@@ -1,0 +1,11 @@
+# main.mscript
+
+import testimport
+import python
+
+a = 1.1
+b = 1
+
+print a < b              # Should print: false
+
+print "hll"

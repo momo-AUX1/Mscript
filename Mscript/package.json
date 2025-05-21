@@ -1,0 +1,25 @@
+{
+  "name": "Mscript",
+  "displayName": ".mscript",
+  "description": "Mscript language support",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "mscript",
+      "aliases": ["Mscript", "mscript"],
+      "extensions": [".mscript",".ms"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "mscript",
+      "scopeName": "source.mscript",
+      "path": "./syntaxes/mscript.tmLanguage.json"
+    }]
+  }
+}

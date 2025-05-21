@@ -1,0 +1,88 @@
+# language.def
+?start: statement+
+
+?statement: index_assign
+          | assign
+          | print_stmt
+          | if_stmt
+          | while_stmt
+          | for_stmt
+          | func_def
+          | return_stmt
+          | expr_stmt
+          | import_stmt
+
+COMMENT: /#.*/ 
+%ignore COMMENT
+
+import_stmt  : "import" dotted_name               -> import_stmt
+
+dotted_name  : NAME ("." NAME)*
+
+index_assign : factor "[" expr "]" "=" expr   -> index_assign
+assign       : NAME "=" expr                  -> assign
+
+print_stmt   : "print" expr ("," expr)*       -> print_stmt
+expr_stmt    : expr                           -> expr_stmt
+
+input_expr: "input" ESCAPED_STRING -> input_expr
+
+return_stmt  : "return" expr                   -> return_stmt
+
+if_stmt      : "if" expr block ("elif" expr block)* ("else" block)?   -> if_stmt
+while_stmt   : "while" expr block              -> while_stmt
+for_stmt     : "for" NAME "in" expr block      -> for_stmt
+func_def     : "def" NAME "(" [params] ")" block-> func_def
+
+func_call    : NAME "(" [args] ")"             -> func_call
+params       : NAME ("," NAME)*
+args         : expr ("," expr)*
+
+block        : "{" statement+ "}"              -> block
+
+?expr: expr "or"  expr    -> or_op
+      | expr "and" expr   -> and_op
+      | "not" expr        -> not_op
+      | expr "in" expr    -> in_op
+      | expr ">" term     -> gt
+      | expr "<" term     -> lt
+      | expr "==" term    -> eq
+      | expr "!=" term    -> ne
+      | expr "+" term     -> add
+      | expr "-" term     -> sub
+      | term
+
+?term: power
+     | term "*" power   -> mul
+     | term "/" power   -> div
+     | term "%" power   -> mod
+
+?power: factor
+      | factor "**" power -> pow
+
+?factor: factor "[" expr "]"  -> get_item
+       | atom
+
+?atom: input_expr
+     | func_call
+     | NUMBER            -> number
+     | FLOAT             -> number
+     | ESCAPED_STRING    -> string
+     | NAME              -> var
+     | "true"            -> true
+     | "false"           -> false
+     | "None"            -> none
+     | list_literal
+     | dict_literal
+     | "(" expr ")"
+
+list_literal : "[" [expr ("," expr)*] "]"      -> list
+dict_literal : "{" [pair ("," pair)*] "}"      -> dict
+pair         : expr ":" expr                   -> pair
+
+%import common.CNAME       -> NAME
+%import common.NUMBER
+%import common.FLOAT
+%import common.ESCAPED_STRING
+%import common.WS
+%ignore WS
