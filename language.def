@@ -11,6 +11,9 @@
           | return_stmt
           | expr_stmt
           | import_stmt
+          | break_stmt
+          | continue_stmt
+          | try_stmt
 
 COMMENT: /#.*/ 
 %ignore COMMENT
@@ -19,6 +22,11 @@ DOTTED_NAME: /[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+/
 BYTES: /b"([^"\\]|\\.)*"/ | /b'([^'\\]|\\.)*'/
 
 dotted_name  : NAME ("." NAME)+
+
+catch_clause : "catch" "(" NAME ")" block   -> catch_clause
+             | "catch" block                -> catch_clause
+
+try_stmt     : "try" block catch_clause     -> try_stmt
 
 import_stmt  : "import" NAME                       -> import_stmt
              | "import" dotted_name                -> import_stmt
@@ -44,6 +52,9 @@ params       : NAME ("," NAME)*
 args         : expr ("," expr)*
 
 block        : "{" statement+ "}"              -> block
+
+break_stmt   : "break"     -> break_stmt
+continue_stmt: "continue"  -> continue_stmt
 
 ?expr: expr "or"  expr    -> or_op
       | expr "and" expr   -> and_op

@@ -34,26 +34,61 @@ from lark import Lark, Tree, Token
 from lark.visitors import Interpreter as LarkInterpreter
 import sys
 import platform
+from lark.exceptions import UnexpectedInput
 sys.tracebacklimit = 0
 
-__VERSION__ = "0.3"
+__VERSION__ = "0.4.1"
 __AUTHOR__  = "Momo-AUX1"
 __DATE__    = "2025-05-21"
 
 language_definition = open("language.def").read()
 
+def _wrap_error_with_loc(method):
+    def wrapper(self, tree):
+        try:
+            return method(self, tree)
+        except Exception as e:
+            meta = getattr(tree, "meta", None)
+            if meta:
+                loc = f"{self.filename}:{meta.line}:{meta.column}"
+            else:
+                loc = self.filename
+            raise type(e)(f"{loc}: {e}")
+    return wrapper
+
 class ReturnException(Exception):
     """Unwind the current function frame with a return value."""
     def __init__(self, value):
         self.value = value
+    
+class BreakException(Exception):
+    """Unwind loop with a break."""
+    pass
+
+class ContinueException(Exception):
+    """Unwind loop with a continue."""
+    pass
 
 class MscriptInterpreter(LarkInterpreter):
     """Interpreter for the Mscript language."""
-    def __init__(self):
+    def __init__(self, filename="<string>"):
         super().__init__()
         self.global_env = {}
         self.env        = self.global_env
         self.functions  = {}
+        self.filename   = filename
+
+    def _dispatch_userfunc(self, tree, func):
+        """Wrap every node-visit to attach file/line/col on errors."""
+        try:
+            return super()._dispatch_userfunc(tree, func)
+        except Exception as e:
+            meta = getattr(tree, "meta", None)
+            if meta:
+                loc = f"{self.filename}:{meta.line}:{meta.column}"
+            else:
+                loc = self.filename
+            raise type(e)(f"{loc}: {e}")
 
     def start(self, tree):
         """The main entry point for the interpreter."""
@@ -140,8 +175,13 @@ class MscriptInterpreter(LarkInterpreter):
         cond_tree = tree.children[0]
         block     = tree.children[1]
         while self.visit(cond_tree):
-            for stmt in block.children:
-                self.visit(stmt)
+            try:
+                for stmt in block.children:
+                    self.visit(stmt)
+            except ContinueException:
+                continue
+            except BreakException:
+                break
 
     def for_stmt(self, tree):
         """Evaluate a for statement."""
@@ -150,8 +190,59 @@ class MscriptInterpreter(LarkInterpreter):
         block    = tree.children[2]
         for v in iterable:
             self.env[str(var_tok)] = v
-            for stmt in block.children:
+            try:
+                for stmt in block.children:
+                    self.visit(stmt)
+            except ContinueException:
+                continue
+            except BreakException:
+                break
+
+    def break_stmt(self, tree):
+        """Handle ‘break’."""
+        raise BreakException()
+
+    def continue_stmt(self, tree):
+        """Handle ‘continue’."""
+        raise ContinueException()
+    
+    def try_stmt(self, tree):
+        """
+        Execute a `try` block; if an exception is raised, run its `catch` block.
+        Optional `catch(e)` binds the exception to e, but only within that block.
+        """
+        try_block     = tree.children[0]
+        catch_clause  = tree.children[1]
+
+        cc_children = catch_clause.children
+        if len(cc_children) == 1 and isinstance(cc_children[0], Tree):
+            var_name   = None
+            catch_block = cc_children[0]
+        elif (len(cc_children) == 2
+              and isinstance(cc_children[0], Token)
+              and isinstance(cc_children[1], Tree)):
+            var_name    = str(cc_children[0])
+            catch_block = cc_children[1]
+        else:
+            raise SyntaxError(f"{self.filename}: invalid catch clause")
+
+        try:
+            for stmt in try_block.children:
                 self.visit(stmt)
+        except Exception as exc:
+            if var_name:
+                had_old = var_name in self.env
+                old_val = self.env.get(var_name)
+                self.env[var_name] = exc
+
+            for stmt in catch_block.children:
+                self.visit(stmt)
+
+            if var_name:
+                if had_old:
+                    self.env[var_name] = old_val
+                else:
+                    del self.env[var_name]
 
     def func_def(self, tree):
         """Define a function."""
@@ -289,10 +380,20 @@ class MscriptInterpreter(LarkInterpreter):
             arg_trees = []
 
         if name not in self.functions:
-            raise NameError(f"Function '{name}' is not defined.")
+            meta = getattr(tree, "meta", None)
+            if meta:
+                loc = f"{self.filename}:{meta.line}:{meta.column}"
+            else:
+                loc = self.filename
+            raise NameError(f"{loc}: Function '{name}' is not defined.")
         params, block = self.functions[name]
         if len(params) != len(arg_trees):
-            raise TypeError(f"{name}() expects {len(params)} args, got {len(arg_trees)}")
+            meta = getattr(tree, "meta", None)
+            if meta:
+                loc = f"{self.filename}:{meta.line}:{meta.column}"
+            else:
+                loc = self.filename
+            raise TypeError(f"{loc}: {name}() expects {len(params)} args, got {len(arg_trees)}")
 
         arg_vals = [self.visit(a) for a in arg_trees]
 
@@ -312,15 +413,34 @@ class MscriptInterpreter(LarkInterpreter):
         self.env = old_env
         return result
 
+    @_wrap_error_with_loc
     def add(self, tree): return self.visit(tree.children[0]) + self.visit(tree.children[1])
+
+    @_wrap_error_with_loc
     def sub(self, tree): return self.visit(tree.children[0]) - self.visit(tree.children[1])
+    
+    @_wrap_error_with_loc
     def mul(self, tree): return self.visit(tree.children[0]) * self.visit(tree.children[1])
+    
+    @_wrap_error_with_loc
     def div(self, tree): return self.visit(tree.children[0]) / self.visit(tree.children[1])
-    def gt( self, tree): return self.visit(tree.children[0]) >  self.visit(tree.children[1])
-    def lt( self, tree): return self.visit(tree.children[0]) <  self.visit(tree.children[1])
-    def eq( self, tree): return self.visit(tree.children[0]) == self.visit(tree.children[1])
-    def ne( self, tree): return self.visit(tree.children[0]) != self.visit(tree.children[1])
+    
+    @_wrap_error_with_loc
+    def gt(self, tree): return self.visit(tree.children[0]) > self.visit(tree.children[1])
+    
+    @_wrap_error_with_loc
+    def lt(self, tree): return self.visit(tree.children[0]) < self.visit(tree.children[1])
+    
+    @_wrap_error_with_loc
+    def eq(self, tree): return self.visit(tree.children[0]) == self.visit(tree.children[1])
+    
+    @_wrap_error_with_loc
+    def ne(self, tree): return self.visit(tree.children[0]) != self.visit(tree.children[1])
+    
+    @_wrap_error_with_loc
     def mod(self, tree): return self.visit(tree.children[0]) % self.visit(tree.children[1])
+    
+    @_wrap_error_with_loc
     def pow(self, tree): return self.visit(tree.children[0]) ** self.visit(tree.children[1])
 
 
@@ -332,12 +452,16 @@ class MscriptInterpreter(LarkInterpreter):
 
     def string( self, tree): return ast.literal_eval(tree.children[0])
     def bytes_literal(self, tree):  return ast.literal_eval(str(tree.children[0]))
-    def var(    self, tree):
-        """Get the value of a variable."""
-        name = str(tree.children[0])
-        if name in self.env:        return self.env[name]
-        if name in self.global_env: return self.global_env[name]
-        raise NameError(f"Variable '{name}' is not defined.")
+    def var(self, tree):
+        """Get the value of a variable, or report its undefinition with file:line:col."""
+        tok  = tree.children[0]       
+        name = str(tok)
+        if name in self.env:
+            return self.env[name]
+        if name in self.global_env:
+            return self.global_env[name]
+        line, col = tok.line, tok.column
+        raise NameError(f"{self.filename}:{line}:{col}: Variable '{name}' is not defined.")
 
     def list(self, tree):
         return [self.visit(c) for c in tree.children]
@@ -355,15 +479,28 @@ class MscriptInterpreter(LarkInterpreter):
         """Get an item from a list or dict."""
         container = self.visit(tree.children[0])
         idx       = self.visit(tree.children[1])
-        return container[idx]
+        try:
+            return container[idx]
+        except KeyError as e:
+            meta = getattr(tree, "meta", None)
+            loc = f"{self.filename}:{meta.line}:{meta.column}" if meta else self.filename
+            raise KeyError(f"{loc}: key '{e.args[0]}' not found")
     
     def get_attr(self, tree):
         """Get an attribute from an object."""
-        obj  = self.visit(tree.children[0])
-        attr = str(tree.children[1])
-        if isinstance(obj, dict) and attr in obj:
-            return obj[attr]
-        return getattr(obj, attr)
+        try:
+            obj  = self.visit(tree.children[0])
+            attr = str(tree.children[1])
+            if isinstance(obj, dict) and attr in obj:
+                return obj[attr]
+            return getattr(obj, attr)
+        except AttributeError as e:
+            meta = getattr(tree, "meta", None)
+            if meta:
+                loc = f"{self.filename}:{meta.line}:{meta.column}"
+            else:
+                loc = self.filename
+            raise AttributeError(f"{loc}: {e}")
     
     def true(self, tree):
         return True
@@ -410,12 +547,40 @@ class MscriptInterpreter(LarkInterpreter):
                     return importlib.import_module(attr)
             self.global_env["python"] = PythonModuleProxy()
         else:
-            from lark import Lark
-            parser = Lark(language_definition, parser='lalr')
-            code   = open(f"{name}.mscript").read()
-            tree2  = parser.parse(code)
-            sub    = MscriptInterpreter()
-            sub.visit(tree2)
+            from lark import Lark, UnexpectedInput
+            module_file = f"{name}.mscript"
+
+            parser = Lark(language_definition,
+                          parser='lalr',
+                          propagate_positions=True)
+            try:
+                text = open(module_file).read()
+            except FileNotFoundError:
+                meta = getattr(tree, "meta", None)
+                if meta:
+                    loc = f"{self.filename}:{meta.line}:{meta.column}"
+                else:
+                    loc = self.filename
+                raise SyntaxError(f"{loc}: Module '{name}' not found (could not open '{module_file}')")
+            try:
+                tree2 = parser.parse(text)
+            except UnexpectedInput as e:
+                raise SyntaxError(f"{module_file}:{e.line}:{e.column}: "
+                                  f"Syntax error in imported module")
+
+            sub = MscriptInterpreter(filename=module_file)
+            try:
+                sub.visit(tree2)
+            except Exception as e:
+                meta = getattr(tree, "meta", None)
+                if meta:
+                    loc = f"{self.filename}:{meta.line}:{meta.column}"
+                else:
+                    loc = self.filename
+                raise type(e)(
+                    f"{loc}: error importing '{name}' ({module_file}): {e}"
+                )
+
             self.global_env[name] = sub.global_env
             for fname, (params, block) in sub.functions.items():
                 self.functions[f"{name}.{fname}"] = (params, block)
@@ -431,21 +596,33 @@ class MscriptInterpreter(LarkInterpreter):
             and isinstance(tree.children[0], Tree)
             and tree.children[0].data == 'dotted_name'):
             tree = tree.children[0]
-        parts = [str(tok) for tok in tree.children]
+        try:
+            parts = [str(tok) for tok in tree.children]
 
-        if parts[0] in self.env:
-            obj = self.env[parts[0]]
-        elif parts[0] in self.global_env:
-            obj = self.global_env[parts[0]]
-        else:
-            raise NameError(f"Name '{parts[0]}' is not defined")
-
-        for attr in parts[1:]:
-            if isinstance(obj, dict) and attr in obj:
-                obj = obj[attr]
+            if parts[0] in self.env:
+                obj = self.env[parts[0]]
+            elif parts[0] in self.global_env:
+                obj = self.global_env[parts[0]]
             else:
-                obj = getattr(obj, attr)
-        return obj
+                meta = getattr(tree, "meta", None)
+                loc = f"{self.filename}:{meta.line}:{meta.column}" if meta else self.filename
+                raise NameError(f"{loc}: Name '{parts[0]}' is not defined")
+
+            for attr in parts[1:]:
+                if isinstance(obj, dict) and attr in obj:
+                    obj = obj[attr]
+                else:
+                    obj = getattr(obj, attr)
+            return obj
+        except Exception as e:
+            meta = getattr(tree, "meta", None)
+            if meta:
+                loc = f"{self.filename}:{meta.line}:{meta.column}"
+            else:
+                loc = self.filename
+            if parts[0] in self.env and parts[0] != self.filename:
+                raise type(e)(f"{loc}: {str(e).replace('dict', parts[0])}")
+            raise type(e)(f"{loc} {str(e).replace(loc, "")}")
 
 
 if __name__ == '__main__':
@@ -461,8 +638,22 @@ if __name__ == '__main__':
     if not argv[1].endswith(".mscript"):
         raise Exception(f"Mscript files must end in .mscript suffix and be the first argument. Got: {argv[1]}")
     
-    parser = Lark(language_definition, parser='lalr')
-    tree   = parser.parse(open(argv[1]).read())
-    MscriptInterpreter().visit(tree)
+    parser = Lark(language_definition,
+                  parser='lalr',
+                  propagate_positions=True)
+    try:
+        text = open(argv[1]).read()
+        tree = parser.parse(text)
+    except UnexpectedInput as e:
+        print(f"{argv[1]}:{e.line}:{e.column}: Syntax error: {e}")
+        sys.exit(1)
+
+    interp = MscriptInterpreter(filename=argv[1])
+    try:
+        interp.visit(tree)
+    except Exception as e:
+        print(e)
     if "--debug" in argv:
-        print(tree.pretty())
+        print(tree.pretty(""))
+    
+    sys.exit(1)

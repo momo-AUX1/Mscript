@@ -1,3 +1,8 @@
-x = "hi"
+import python
 
-print type(x)
+try {
+    python.requests.get("https://www.example.m").text  
+} catch (e) {
+    print "Error:", e
+    print type(e)
+}
