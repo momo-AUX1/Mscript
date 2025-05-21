@@ -14,9 +14,13 @@ The interpreter supports basic constructs such as:
 - Type conversion (str, int, type)
 - Built-in functions (input, str, int, type)
 
-version 0.3 (planned):
+version 0.4 (planned):
 - Add support for more built-in functions
 - try/except for error handling
+
+version 0.3:
+- Added support for dotted names in function calls
+- Added support for dotted names in variable assignments
 
 version 0.2:
 - Improved interpreter
@@ -32,7 +36,7 @@ import sys
 import platform
 sys.tracebacklimit = 0
 
-__VERSION__ = "0.2"
+__VERSION__ = "0.3"
 __AUTHOR__  = "Momo-AUX1"
 __DATE__    = "2025-05-21"
 
@@ -156,8 +160,25 @@ class MscriptInterpreter(LarkInterpreter):
         self.functions[str(name_tok)] = (params, block)
 
     def func_call(self, tree):
-        name_tok = tree.children[0]
-        name     = str(name_tok)
+        node = tree.children[0]
+        if isinstance(node, Tree) and node.data in ("dotted_name", "dotted_name_expr"):
+            parts = [str(tok) for tok in node.children]
+            name  = ".".join(parts)
+        else:
+            name  = str(node)
+        
+        if name.startswith("python."):
+            parts = name.split(".")
+            obj   = self.global_env.get(parts[0])
+            for attr in parts[1:]:
+                obj = getattr(obj, attr)
+            arg_trees = (tree.children[1].children
+                         if len(tree.children)>1
+                            and isinstance(tree.children[1], Tree)
+                            and tree.children[1].data=='args'
+                         else [])
+            arg_vals = [self.visit(a) for a in arg_trees]
+            return obj(*arg_vals)
         
         if name == 'input':
             args = (tree.children[1].children
@@ -280,6 +301,13 @@ class MscriptInterpreter(LarkInterpreter):
         idx       = self.visit(tree.children[1])
         return container[idx]
     
+    def get_attr(self, tree):
+        obj  = self.visit(tree.children[0])
+        attr = str(tree.children[1])
+        if isinstance(obj, dict) and attr in obj:
+            return obj[attr]
+        return getattr(obj, attr)
+    
     def true(self, tree):
         return True
 
@@ -305,10 +333,15 @@ class MscriptInterpreter(LarkInterpreter):
         left, right = tree.children
         return self.visit(left) in self.visit(right)
     
+    
+    
     def import_stmt(self, tree):
-        mod_tree = tree.children[0]
-        names    = [str(n) for n in mod_tree.children]
-        name     = ".".join(names)
+        node = tree.children[0]
+        if isinstance(node, Tree) and node.data == 'dotted_name':
+            names = [str(tok) for tok in node.children]
+            name  = ".".join(names)
+        else:
+            name  = str(node)
 
         if name == "python":
             import importlib, builtins
@@ -326,6 +359,35 @@ class MscriptInterpreter(LarkInterpreter):
             sub    = MscriptInterpreter()
             sub.visit(tree2)
             self.global_env[name] = sub.global_env
+            for fname, (params, block) in sub.functions.items():
+                self.functions[f"{name}.{fname}"] = (params, block)
+    
+    def dotted_name_expr(self, tree):
+        if (len(tree.children) == 1
+            and isinstance(tree.children[0], Tree)
+            and tree.children[0].data == 'dotted_name'):
+            tree = tree.children[0]
+
+        if (len(tree.children) == 1
+            and isinstance(tree.children[0], Tree)
+            and tree.children[0].data == 'dotted_name'):
+            tree = tree.children[0]
+        parts = [str(tok) for tok in tree.children]
+
+        if parts[0] in self.env:
+            obj = self.env[parts[0]]
+        elif parts[0] in self.global_env:
+            obj = self.global_env[parts[0]]
+        else:
+            raise NameError(f"Name '{parts[0]}' is not defined")
+
+        for attr in parts[1:]:
+            if isinstance(obj, dict) and attr in obj:
+                obj = obj[attr]
+            else:
+                obj = getattr(obj, attr)
+        return obj
+
 
 
 if __name__ == '__main__':

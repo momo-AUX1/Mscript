@@ -1,11 +1,7 @@
-# main.mscript
-
-import testimport
 import python
+import testimport
 
-a = 1.1
-b = 1
+resp = python.requests.get("https://api.github.com")
+#print resp.text
 
-print a < b              # Should print: false
-
-print "hll"
+print testimport.test_val

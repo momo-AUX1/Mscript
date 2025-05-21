@@ -15,9 +15,12 @@
 COMMENT: /#.*/ 
 %ignore COMMENT
 
-import_stmt  : "import" dotted_name               -> import_stmt
+DOTTED_NAME: /[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+/
 
-dotted_name  : NAME ("." NAME)*
+dotted_name  : NAME ("." NAME)+
+
+import_stmt  : "import" NAME                       -> import_stmt
+             | "import" dotted_name                -> import_stmt
 
 index_assign : factor "[" expr "]" "=" expr   -> index_assign
 assign       : NAME "=" expr                  -> assign
@@ -35,6 +38,7 @@ for_stmt     : "for" NAME "in" expr block      -> for_stmt
 func_def     : "def" NAME "(" [params] ")" block-> func_def
 
 func_call    : NAME "(" [args] ")"             -> func_call
+             | dotted_name "(" [args] ")"      -> func_call
 params       : NAME ("," NAME)*
 args         : expr ("," expr)*
 
@@ -61,10 +65,12 @@ block        : "{" statement+ "}"              -> block
       | factor "**" power -> pow
 
 ?factor: factor "[" expr "]"  -> get_item
+       | factor "." NAME     -> get_attr
        | atom
 
 ?atom: input_expr
      | func_call
+     | dotted_name            -> dotted_name_expr
      | NUMBER            -> number
      | FLOAT             -> number
      | ESCAPED_STRING    -> string
