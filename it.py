@@ -213,6 +213,46 @@ class MscriptInterpreter(LarkInterpreter):
             val = self.visit(args[0])
             return type(val).__name__
         
+        if name == 'bytes':
+            arg_nodes = (tree.children[1].children
+                         if len(tree.children)>1
+                            and isinstance(tree.children[1], Tree)
+                            and tree.children[1].data=='args'
+                         else [])
+            vals = [self.visit(n) for n in arg_nodes]
+            if len(vals) == 1:
+                v = vals[0]
+                if isinstance(v, str):
+                    return v.encode()
+                return bytes(v)
+            elif len(vals) == 2:
+                s, enc = vals
+                if not isinstance(s, str) or not isinstance(enc, str):
+                    raise TypeError('bytes(str, encoding) args must be (str, str)')
+                return s.encode(enc)
+            else:
+                raise TypeError(f"bytes() expects 1 or 2 args, got {len(vals)}")
+
+        if name == 'encode':
+            arg_nodes = (tree.children[1].children
+                         if len(tree.children)>1
+                            and isinstance(tree.children[1], Tree)
+                            and tree.children[1].data=='args'
+                         else [])
+            vals = [self.visit(n) for n in arg_nodes]
+            if len(vals) == 1:
+                s = vals[0]
+                if not isinstance(s, str):
+                    raise TypeError('encode() first arg must be a string')
+                return s.encode()
+            elif len(vals) == 2:
+                s, enc = vals
+                if not isinstance(s, str) or not isinstance(enc, str):
+                    raise TypeError('encode() args must be (str, str)')
+                return s.encode(enc)
+            else:
+                raise TypeError(f"encode() expects 1 or 2 args, got {len(vals)}")
+        
         if name in ('len','keys','values'):
             args = (tree.children[1].children
                     if len(tree.children)>1 and isinstance(tree.children[1], Tree) and tree.children[1].data=='args'
@@ -279,6 +319,7 @@ class MscriptInterpreter(LarkInterpreter):
         return float(text) if "." in text else int(text)
 
     def string( self, tree): return ast.literal_eval(tree.children[0])
+    def bytes_literal(self, tree):  return ast.literal_eval(str(tree.children[0]))
     def var(    self, tree):
         name = str(tree.children[0])
         if name in self.env:        return self.env[name]

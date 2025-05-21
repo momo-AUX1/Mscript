@@ -3,7 +3,7 @@
   "patterns": [
     {
       "name": "keyword.control.mscript",
-      "match": "\\b(if|else|while|for|return|def|in|or|elif)\\b"
+      "match": "\\b(if|else|while|for|return|def|in|or|elif|import)\\b"
     },
     {
       "name": "entity.name.function.mscript",
@@ -15,7 +15,7 @@
     },
     {
       "name": "support.function.mscript",
-      "match": "\\b(input|str|int|type|print|len|keys|values)\\b"
+      "match": "\\b(input|str|int|type|print|len|keys|values|bytes|encode)\\b"
     },
     {
       "name": "constant.numeric.mscript",

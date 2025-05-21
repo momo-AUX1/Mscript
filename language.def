@@ -16,6 +16,7 @@ COMMENT: /#.*/
 %ignore COMMENT
 
 DOTTED_NAME: /[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+/
+BYTES: /b"([^"\\]|\\.)*"/ | /b'([^'\\]|\\.)*'/
 
 dotted_name  : NAME ("." NAME)+
 
@@ -74,6 +75,7 @@ block        : "{" statement+ "}"              -> block
      | NUMBER            -> number
      | FLOAT             -> number
      | ESCAPED_STRING    -> string
+     | BYTES                  -> bytes_literal
      | NAME              -> var
      | "true"            -> true
      | "false"           -> false
@@ -87,7 +89,7 @@ dict_literal : "{" [pair ("," pair)*] "}"      -> dict
 pair         : expr ":" expr                   -> pair
 
 %import common.CNAME       -> NAME
-%import common.NUMBER
+%import common.SIGNED_NUMBER   -> NUMBER
 %import common.FLOAT
 %import common.ESCAPED_STRING
 %import common.WS
