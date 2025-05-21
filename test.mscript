@@ -1,8 +1,1 @@
-import python
-
-try {
-    python.requests.get("https://www.example.m").text  
-} catch (e) {
-    print "Error:", e
-    print type(e)
-}
+a = int("0x1F4A9")

@@ -23,6 +23,7 @@ BYTES: /b"([^"\\]|\\.)*"/ | /b'([^'\\]|\\.)*'/
 
 dotted_name  : NAME ("." NAME)+
 
+
 catch_clause : "catch" "(" NAME ")" block   -> catch_clause
              | "catch" block                -> catch_clause
 
@@ -95,8 +96,8 @@ continue_stmt: "continue"  -> continue_stmt
      | dict_literal
      | "(" expr ")"
 
-list_literal : "[" [expr ("," expr)*] "]"      -> list
-dict_literal : "{" [pair ("," pair)*] "}"      -> dict
+list_literal : "[" (expr ("," expr)*)? "]"      -> list
+dict_literal : "{" (pair ("," pair)*)? "}"      -> dict
 pair         : expr ":" expr                   -> pair
 
 %import common.CNAME       -> NAME

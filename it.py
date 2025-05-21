@@ -14,7 +14,10 @@ The interpreter supports basic constructs such as:
 - Type conversion (str, int, type)
 - Built-in functions (input, str, int, type)
 
-version 0.4 (planned):
+version 0.5 (planned):
+- True STD library
+
+version 0.4 :
 - Add support for more built-in functions
 - try/except for error handling
 
@@ -34,10 +37,11 @@ from lark import Lark, Tree, Token
 from lark.visitors import Interpreter as LarkInterpreter
 import sys
 import platform
+import os
 from lark.exceptions import UnexpectedInput
 sys.tracebacklimit = 0
 
-__VERSION__ = "0.4.1"
+__VERSION__ = "0.4.6"
 __AUTHOR__  = "Momo-AUX1"
 __DATE__    = "2025-05-21"
 
@@ -356,6 +360,75 @@ class MscriptInterpreter(LarkInterpreter):
             else:
                 raise TypeError(f"encode() expects 1 or 2 args, got {len(vals)}")
         
+        if name == 'read':
+            arg_nodes = (tree.children[1].children
+                         if len(tree.children)>1
+                            and isinstance(tree.children[1], Tree)
+                            and tree.children[1].data=='args'
+                         else [])
+            args = [self.visit(n) for n in arg_nodes]
+            if len(args) == 1:
+                filename = args[0]
+                with open(filename, 'r') as f:
+                    return f.read()
+            elif len(args) == 2:
+                filename, mode = args
+                if mode in ('b','bytes','rb'):
+                    with open(filename, 'rb') as f:
+                        return f.read()
+                else:
+                    with open(filename, 'r') as f:
+                        return f.read()
+            else:
+                raise TypeError(f"read() expects 1 or 2 args, got {len(args)}")
+
+        if name == 'write':
+            arg_nodes = (tree.children[1].children
+                         if len(tree.children)>1
+                            and isinstance(tree.children[1], Tree)
+                            and tree.children[1].data=='args'
+                         else [])
+            args = [self.visit(n) for n in arg_nodes]
+            if len(args) != 2:
+                raise TypeError(f"write() expects 2 args, got {len(args)}")
+            filename, data = args
+            mode = 'wb' if isinstance(data, (bytes, bytearray)) else 'w'
+            with open(filename, mode) as f:
+                return f.write(data)
+        
+        if name == 'decode':
+            arg_nodes = (tree.children[1].children
+                         if len(tree.children)>1
+                            and isinstance(tree.children[1], Tree)
+                            and tree.children[1].data=='args'
+                         else [])
+            vals = [self.visit(n) for n in arg_nodes]
+            if len(vals) == 1:
+                b = vals[0]
+                if not isinstance(b, (bytes, bytearray)):
+                    raise TypeError('decode() first arg must be bytes')
+                return b.decode()
+            elif len(vals) == 2:
+                b, enc = vals
+                if not isinstance(b, (bytes, bytearray)) or not isinstance(enc, str):
+                    raise TypeError('decode() args must be (bytes, str)')
+                return b.decode(enc)
+            else:
+                raise TypeError(f"decode() expects 1 or 2 args, got {len(vals)}")
+
+        if name == 'system':
+            arg_nodes = (tree.children[1].children
+                         if len(tree.children)>1
+                            and isinstance(tree.children[1], Tree)
+                            and tree.children[1].data=='args'
+                         else [])
+            vals = [self.visit(n) for n in arg_nodes]
+            if len(vals) != 1:
+                raise TypeError(f"system() expects 1 arg, got {len(vals)}")
+            cmd = vals[0]
+            os.system(str(cmd))
+            return 
+        
         if name in ('len','keys','values'):
             args = (tree.children[1].children
                     if len(tree.children)>1 and isinstance(tree.children[1], Tree) and tree.children[1].data=='args'
@@ -443,15 +516,19 @@ class MscriptInterpreter(LarkInterpreter):
     @_wrap_error_with_loc
     def pow(self, tree): return self.visit(tree.children[0]) ** self.visit(tree.children[1])
 
-
+    @_wrap_error_with_loc
     def number(self, tree):
         """Parse ints or floats automatically."""
         tok  = tree.children[0]
         text = str(tok)
         return float(text) if "." in text else int(text)
-
+    
+    @_wrap_error_with_loc
     def string( self, tree): return ast.literal_eval(tree.children[0])
+
+    @_wrap_error_with_loc
     def bytes_literal(self, tree):  return ast.literal_eval(str(tree.children[0]))
+
     def var(self, tree):
         """Get the value of a variable, or report its undefinition with file:line:col."""
         tok  = tree.children[0]       
@@ -526,7 +603,6 @@ class MscriptInterpreter(LarkInterpreter):
     def in_op(self, tree):
         left, right = tree.children
         return self.visit(left) in self.visit(right)
-    
     
     
     def import_stmt(self, tree):
@@ -628,7 +704,7 @@ class MscriptInterpreter(LarkInterpreter):
 if __name__ == '__main__':
     argv = sys.argv
 
-    if len(argv) > 3:
+    if len(argv) > 5:
         raise Exception(f"Too many arguments expected 2 got {len(argv) - 1}")
     
     if argv[1] == "--version":
@@ -654,6 +730,6 @@ if __name__ == '__main__':
     except Exception as e:
         print(e)
     if "--debug" in argv:
-        print(tree.pretty(""))
+        print(tree.pretty(f"{argv[len(argv)-1] if argv[len(argv)-2] == '--debug' else ""}"))
     
     sys.exit(1)
