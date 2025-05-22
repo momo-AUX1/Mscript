@@ -3,3 +3,4 @@ test.json
 __pycache__/
 .vscode
 !std/*.mscript
+!examples/*.mscript

@@ -1,0 +1,21 @@
+# testimport.mscript
+
+
+
+def hello() {
+    return "Hello from testimport!"
+}
+
+def test_py() {
+    return python.int("2")
+}
+
+test_val = 99
+
+def add(a, b) {
+    return a + b
+}
+
+def bytess() {
+    return bytes("Hello from testimport!")
+}

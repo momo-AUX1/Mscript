@@ -167,7 +167,7 @@ def builtin_del_attr(obj, attr):
     delattr(obj, attr)
     return None
 
-# ——— foreign‐function interface (FFI) —————————————————————————————————
+# ——— foreign-function interface (FFI) —————————————————————————————————
 
 _ffi_ctype_map = {
     "void":   ctypes.c_void_p,

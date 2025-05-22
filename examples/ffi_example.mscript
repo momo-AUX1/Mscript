@@ -1,0 +1,99 @@
+# test_event.mscript
+
+import "ffi"
+
+# 1. Load the SDL2 shared library
+SDL = ffi.load("libSDL2.dylib")
+
+# 2. Bind the functions we need
+SDL_Init                = ffi.func(SDL, "SDL_Init",                "int",   ["uint"])
+SDL_Quit                = ffi.func(SDL, "SDL_Quit",                "void",  [])
+SDL_CreateWindow        = ffi.func(SDL, "SDL_CreateWindow",        "void*", ["char*", "int", "int", "int", "int", "uint"])
+SDL_CreateRenderer      = ffi.func(SDL, "SDL_CreateRenderer",      "void*", ["void*", "int", "uint"])
+SDL_SetRenderDrawColor  = ffi.func(SDL, "SDL_SetRenderDrawColor",  "int",   ["void*", "uint", "uint", "uint", "uint"])
+SDL_RenderClear         = ffi.func(SDL, "SDL_RenderClear",         "int",   ["void*"])
+SDL_RenderPresent       = ffi.func(SDL, "SDL_RenderPresent",       "void",  ["void*"])
+SDL_DestroyRenderer     = ffi.func(SDL, "SDL_DestroyRenderer",     "void",  ["void*"])
+SDL_DestroyWindow       = ffi.func(SDL, "SDL_DestroyWindow",       "void",  ["void*"])
+SDL_Delay               = ffi.func(SDL, "SDL_Delay",               "void",  ["uint"])
+SDL_PollEvent           = ffi.func(SDL, "SDL_PollEvent",           "int",   ["void*"])
+SDL_SetWindowTitle      = ffi.func(SDL, "SDL_SetWindowTitle",      "void",  ["void*", "char*"])
+SDL_GetTicks            = ffi.func(SDL, "SDL_GetTicks",            "uint",  [])
+
+# 3. Define constants (corrected)
+SDL_INIT_VIDEO           = 32
+SDL_WINDOW_SHOWN         = 4      # was 1—must be 0x00000004, not fullscreen
+SDL_RENDERER_ACCELERATED = 2
+SDL_QUIT_EVENT           = 256    # SDL_QUIT
+
+# 4. Initialize SDL video subsystem
+if SDL_Init(SDL_INIT_VIDEO) != 0 {
+    print("SDL_Init failed!")
+    exit(1)
+}
+
+# 5. Create window & renderer
+window = SDL_CreateWindow(
+    encode("Mscript SDL2 Event Example"),
+    100,
+    100,
+    640,
+    480,
+    SDL_WINDOW_SHOWN
+)
+renderer = SDL_CreateRenderer(
+    window,
+    -1,
+    SDL_RENDERER_ACCELERATED
+)
+
+# 6. Allocate and point to a raw event buffer
+event_buf = ffi.buffer(256)
+event_ptr = ffi.buffer_ptr(event_buf)
+
+running = true
+while running {
+    # 7. Poll all pending events
+    while SDL_PollEvent(event_ptr) != 0 {
+        event_type = ffi.read_u32(event_buf)
+        print event_type
+        if event_type == SDL_QUIT_EVENT {
+            running = false
+        }
+    }
+
+    # 8. Cycle clear color every second: 0 → red, 1 → green, 2 → blue
+    ticks = SDL_GetTicks()
+    sec   = ticks / 1000
+    state = sec % 3
+    if state == 0 {
+        r = 255
+        g = 0
+        b = 0
+    } elif state == 1 {
+        r = 0
+        g = 255
+        b = 0
+    } else {
+        r = 0
+        g = 0
+        b = 255
+    }
+
+    # 9. Update window title with current color
+    title = str(r) + "," + str(g) + "," + str(b)
+    SDL_SetWindowTitle(window, encode(title))
+
+    # 10. Clear screen and present
+    SDL_SetRenderDrawColor(renderer, r, g, b, 255)
+    SDL_RenderClear(renderer)
+    SDL_RenderPresent(renderer)
+
+    # 11. Delay ~16 ms for ~60 FPS
+    SDL_Delay(16)
+}
+
+# 12. Clean up and quit
+SDL_DestroyRenderer(renderer)
+SDL_DestroyWindow(window)
+SDL_Quit()
