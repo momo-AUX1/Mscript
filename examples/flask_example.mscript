@@ -1,0 +1,14 @@
+import python
+
+Flask = python.flask.Flask
+Request = python.flask.request
+
+app = Flask("__main__")
+
+def hello(){
+    return "Hello from Mscript!"
+}
+
+app.add_url_rule("/", "hello", hello)
+
+app.run()
