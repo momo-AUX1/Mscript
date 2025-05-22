@@ -1,0 +1,29 @@
+# platform.mscript
+
+def system() {
+    return _platform_system()
+}
+
+def node() {
+    return _platform_node()
+}
+
+def release() {
+    return _platform_release()
+}
+
+def version() {
+    return _platform_version()
+}
+
+def machine() {
+    return _platform_machine()
+}
+
+def processor() {
+    return _platform_processor()
+}
+
+def full() {
+    return _platform_platform()
+}

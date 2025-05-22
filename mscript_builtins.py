@@ -7,6 +7,9 @@ import sys
 import datetime
 import re
 import time as _time_mod
+import ctypes
+import platform as _py_platform
+import random as _py_random # probably better if i prefixed everything under _py_ for readability 
 
 def builtin_input(prompt):
     return input(str(prompt))
@@ -144,6 +147,174 @@ def builtin_sleep(seconds):
 def builtin_time():
     return _time_mod.time()
 
+# ——— attribute operations —————————————————————————————————————
+def builtin_set_attr(obj, attr, value):
+    if not isinstance(attr, str):
+        raise TypeError("set_attr() attribute name must be a string")
+    setattr(obj, attr, value)
+    return None
+
+def builtin_has_attr(obj, attr):
+    if not isinstance(attr, str):
+        raise TypeError("has_attr() attribute name must be a string")
+    return hasattr(obj, attr)
+
+def builtin_del_attr(obj, attr):
+    if not isinstance(attr, str):
+        raise TypeError("del_attr() attribute name must be a string")
+    if not hasattr(obj, attr):
+        raise AttributeError(f"Attribute '{attr}' not found")
+    delattr(obj, attr)
+    return None
+
+# ——— foreign‐function interface (FFI) —————————————————————————————————
+
+_ffi_ctype_map = {
+    "void":   ctypes.c_void_p,
+    "int":    ctypes.c_int,
+    "uint":   ctypes.c_uint,
+    "short":  ctypes.c_short,
+    "ushort": ctypes.c_ushort,
+    "long":   ctypes.c_long,
+    "ulong":  ctypes.c_ulong,
+    "float":  ctypes.c_float,
+    "double": ctypes.c_double,
+    "char*":  ctypes.c_char_p,
+    "void*":  ctypes.c_void_p,
+    "size_t": ctypes.c_size_t
+}
+
+def builtin_ffi_open(path):
+    return ctypes.CDLL(str(path))
+
+def builtin_ffi_sym(lib, name):
+    return getattr(lib, str(name))
+
+def builtin_ffi_set_ret(func, ret_type):
+    try:
+        func.restype = _ffi_ctype_map[str(ret_type)]
+    except KeyError:
+        raise TypeError(f"Unknown return type '{ret_type}'")
+    return None
+
+def builtin_ffi_set_args(func, arg_types):
+    try:
+        func.argtypes = [_ffi_ctype_map[str(t)] for t in arg_types]
+    except KeyError as e:
+        raise TypeError(f"Unknown argument type '{e.args[0]}'")
+    return None
+
+def builtin_ffi_buffer(size):
+    return ctypes.create_string_buffer(size)
+
+def builtin_ffi_buffer_ptr(buf):
+    return ctypes.byref(buf)
+
+def builtin_ffi_read_uint32(buf):
+    return ctypes.cast(buf, ctypes.POINTER(ctypes.c_uint32)).contents.value
+
+def builtin_ffi_buffer_offset(buf, offset):
+    return ctypes.byref(buf, offset)
+
+def builtin_ffi_read_uint8(buf, offset=0):
+    return ctypes.cast(ctypes.byref(buf, offset),
+                       ctypes.POINTER(ctypes.c_uint8)).contents.value
+def builtin_ffi_read_int8(buf, offset=0):
+    return ctypes.cast(ctypes.byref(buf, offset),
+                       ctypes.POINTER(ctypes.c_int8)).contents.value
+def builtin_ffi_read_uint16(buf, offset=0):
+    return ctypes.cast(ctypes.byref(buf, offset),
+                       ctypes.POINTER(ctypes.c_uint16)).contents.value
+def builtin_ffi_read_int16(buf, offset=0):
+    return ctypes.cast(ctypes.byref(buf, offset),
+                       ctypes.POINTER(ctypes.c_int16)).contents.value
+def builtin_ffi_read_int32(buf, offset=0):
+    return ctypes.cast(ctypes.byref(buf, offset),
+                       ctypes.POINTER(ctypes.c_int32)).contents.value
+def builtin_ffi_read_float(buf, offset=0):
+    return ctypes.cast(ctypes.byref(buf, offset),
+                       ctypes.POINTER(ctypes.c_float)).contents.value
+def builtin_ffi_read_double(buf, offset=0):
+    return ctypes.cast(ctypes.byref(buf, offset),
+                       ctypes.POINTER(ctypes.c_double)).contents.value
+def builtin_ffi_write_uint8(buf, value, offset=0):
+    ptr = ctypes.cast(ctypes.byref(buf, offset),
+                      ctypes.POINTER(ctypes.c_uint8))
+    ptr.contents.value = value
+def builtin_ffi_write_int8(buf, value, offset=0):
+    ptr = ctypes.cast(ctypes.byref(buf, offset),
+                      ctypes.POINTER(ctypes.c_int8))
+    ptr.contents.value = value
+def builtin_ffi_write_uint16(buf, value, offset=0):
+    ptr = ctypes.cast(ctypes.byref(buf, offset),
+                      ctypes.POINTER(ctypes.c_uint16))
+    ptr.contents.value = value
+def builtin_ffi_write_int16(buf, value, offset=0):
+    ptr = ctypes.cast(ctypes.byref(buf, offset),
+                      ctypes.POINTER(ctypes.c_int16))
+    ptr.contents.value = value
+def builtin_ffi_write_int32(buf, value, offset=0):
+    ptr = ctypes.cast(ctypes.byref(buf, offset),
+                      ctypes.POINTER(ctypes.c_int32))
+    ptr.contents.value = value
+def builtin_ffi_write_float(buf, value, offset=0):
+    ptr = ctypes.cast(ctypes.byref(buf, offset),
+                      ctypes.POINTER(ctypes.c_float))
+    ptr.contents.value = value
+def builtin_ffi_write_double(buf, value, offset=0):
+    ptr = ctypes.cast(ctypes.byref(buf, offset),
+                      ctypes.POINTER(ctypes.c_double))
+    ptr.contents.value = value
+def builtin_ffi_write_uint32(buf, value, offset=0):
+    ptr = ctypes.cast(
+        ctypes.byref(buf, offset),
+        ctypes.POINTER(ctypes.c_uint32)
+    )
+    ptr.contents.value = value
+
+# ——— Platform builtins —————————————————————————————————————————————
+def builtin_platform_system():
+    return _py_platform.system()
+
+def builtin_platform_node():
+    return _py_platform.node()
+
+def builtin_platform_release():
+    return _py_platform.release()
+
+def builtin_platform_version():
+    return _py_platform.version()
+
+def builtin_platform_machine():
+    return _py_platform.machine()
+
+def builtin_platform_processor():
+    return _py_platform.processor()
+
+def builtin_platform_platform():
+    return _py_platform.platform()
+
+# ——— Random builtins ——————————————————————————————————————————————
+def builtin_random_random():
+    return _py_random.random()
+
+def builtin_random_randint(a, b):
+    return _py_random.randint(a, b)
+
+def builtin_random_uniform(a, b):
+    return _py_random.uniform(a, b)
+
+def builtin_random_choice(seq):
+    return _py_random.choice(seq)
+
+def builtin_random_shuffle(seq):
+    _py_random.shuffle(seq)
+    return None
+
+def builtin_random_seed(s):
+    _py_random.seed(s)
+    return None
+
 builtins = {
     # core
     'input':       builtin_input,
@@ -159,6 +330,9 @@ builtins = {
     'len':         builtin_len,
     'keys':        builtin_keys,
     'values':      builtin_values,
+    'set_attr':    builtin_set_attr,
+    'has_attr':    builtin_has_attr,
+    'del_attr':    builtin_del_attr,
 
     # math (internal)
     '_sin':         builtin_sin,
@@ -198,4 +372,45 @@ builtins = {
     # time (internal)
     '_sleep':        builtin_sleep,
     '_time':         builtin_time,
+
+    # FFI (internal)
+    "_ffi_open":       builtin_ffi_open,
+    "_ffi_sym":        builtin_ffi_sym,
+    "_ffi_set_ret":    builtin_ffi_set_ret,
+    "_ffi_set_args":   builtin_ffi_set_args,
+    "_ffi_buffer":       builtin_ffi_buffer,
+    "_ffi_buffer_ptr":   builtin_ffi_buffer_ptr,
+    "_ffi_read_uint32":  builtin_ffi_read_uint32,
+     "_ffi_buffer_offset":    builtin_ffi_buffer_offset,
+    "_ffi_read_uint8":       builtin_ffi_read_uint8,
+    "_ffi_read_int8":        builtin_ffi_read_int8,
+    "_ffi_read_uint16":      builtin_ffi_read_uint16,
+    "_ffi_read_int16":       builtin_ffi_read_int16,
+    "_ffi_read_int32":       builtin_ffi_read_int32,
+    "_ffi_read_float":       builtin_ffi_read_float,
+    "_ffi_read_double":      builtin_ffi_read_double,
+    "_ffi_write_uint8":      builtin_ffi_write_uint8,
+    "_ffi_write_int8":       builtin_ffi_write_int8,
+    "_ffi_write_uint16":     builtin_ffi_write_uint16,
+    "_ffi_write_int16":      builtin_ffi_write_int16,
+    "_ffi_write_int32":      builtin_ffi_write_int32,
+    "_ffi_write_float":      builtin_ffi_write_float,
+    "_ffi_write_double":     builtin_ffi_write_double,
+
+    # platform (internal)
+    "_platform_system":    builtin_platform_system,
+    "_platform_node":      builtin_platform_node,
+    "_platform_release":   builtin_platform_release,
+    "_platform_version":   builtin_platform_version,
+    "_platform_machine":   builtin_platform_machine,
+    "_platform_processor": builtin_platform_processor,
+    "_platform_platform":  builtin_platform_platform,
+
+    # random (internal)
+    "_random_random":   builtin_random_random,
+    "_random_randint":  builtin_random_randint,
+    "_random_uniform":  builtin_random_uniform,
+    "_random_choice":   builtin_random_choice,
+    "_random_shuffle":  builtin_random_shuffle,
+    "_random_seed":     builtin_random_seed,
 }

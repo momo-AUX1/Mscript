@@ -1,5 +1,7 @@
 # sys.mscript
 
+import python
+
 def argv() {
     return _argv()
 }
@@ -15,6 +17,8 @@ def setenv(name, value) {
 def unsetenv(name) {
     _unsetenv(name)
 }
+
+platform = python.platform
 
 #def exit(code) {
 #    exit(code)

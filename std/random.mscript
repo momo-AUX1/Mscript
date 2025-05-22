@@ -1,0 +1,25 @@
+# random.mscript
+
+def random() {
+    return _random_random()
+}
+
+def seed(s) {
+    _random_seed(s)
+}
+
+def randint(a, b) {
+    return _random_randint(a, b)
+}
+
+def uniform(a, b) {
+    return _random_uniform(a, b)
+}
+
+def choice(lst) {
+    return _random_choice(lst)
+}
+
+def shuffle(lst) {
+    _random_shuffle(lst)
+}

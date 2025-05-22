@@ -1,0 +1,86 @@
+# ffi.mscript
+
+def load(path) {
+    return _ffi_open(path)
+}
+
+def sym(lib, name) {
+    return _ffi_sym(lib, name)
+}
+
+def set_ret(func, ret_type) {
+    _ffi_set_ret(func, ret_type)
+}
+
+def set_args(func, arg_types) {
+    _ffi_set_args(func, arg_types)
+}
+
+def func(lib, name, ret_type, arg_types) {
+    f = _ffi_sym(lib, name)
+    _ffi_set_ret(f, ret_type)
+    _ffi_set_args(f, arg_types)
+    return f
+}
+
+def buffer(size) {
+    return _ffi_buffer(size)
+}
+
+def buffer_ptr(buf) {
+    return _ffi_buffer_ptr(buf)
+}
+
+def offset(buf, bytes) {
+    return _ffi_buffer_offset(buf, bytes)
+}
+
+def read_u8(buf, off) {
+    return _ffi_read_uint8(buf, off)
+}
+def read_i8(buf, off) {
+    return _ffi_read_int8(buf, off)
+}
+def read_u16(buf, off) {
+    return _ffi_read_uint16(buf, off)
+}
+def read_i16(buf, off) {
+    return _ffi_read_int16(buf, off)
+}
+def read_i32(buf, off) {
+    return _ffi_read_int32(buf, off)
+}
+def read_f32(buf, off) {
+    return _ffi_read_float(buf, off)
+}
+def read_u32(buf) {
+    return _ffi_read_uint32(buf)
+}
+def read_f64(buf, off) {
+    return _ffi_read_double(buf, off)
+}
+
+def write_u8(buf, val, off) {
+    _ffi_write_uint8(buf, val, off)
+}
+def write_i8(buf, val, off) {
+    _ffi_write_int8(buf, val, off)
+}
+def write_u16(buf, val, off) {
+    _ffi_write_uint16(buf, val, off)
+}
+def write_i16(buf, val, off) {
+    _ffi_write_int16(buf, val, off)
+}
+def write_i32(buf, val, off) {
+    _ffi_write_int32(buf, val, off)
+}
+def write_u32(buf, val, off) {
+    _ffi_write_uint32(buf, val, off)
+}
+def write_f32(buf, val, off) {
+    _ffi_write_float(buf, val, off)
+}
+def write_f64(buf, val, off) {
+    _ffi_write_double(buf, val, off)
+}

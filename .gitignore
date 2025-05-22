@@ -1,4 +1,5 @@
 *.mscript
 test.json
-
+__pycache__/
+.vscode
 !std/*.mscript
