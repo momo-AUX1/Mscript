@@ -85,7 +85,7 @@ pip install mscript-lang
 Or clone the repo:
 
 ```bash
-git clone https://github.com/your-org/mscript.git
+git clone https://github.com/momo-AUX1/Mscript.git
 cd mscript
 ```
 
