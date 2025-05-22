@@ -1,6 +1,6 @@
 **Mscript Interpreter**  
 **it.py** – Interpreter for the Mscript language  
-**Version:** 0.6.9  
+**Version:** 0.7.0  
 **Author:** Momo-AUX1  
 **Date:** 2025-05-21
 
@@ -229,7 +229,7 @@ SDL_Init = ffi.func(SDL, "SDL_Init", "int", ["uint"])
 SDL_Quit = ffi.func(SDL, "SDL_Quit", "void", [])
 
 if SDL_Init(32) != 0 {
-    print("SDL_Init failed!")
+    print "SDL_Init failed!"
     exit(1)
 }
 # ...
