@@ -1,6 +1,7 @@
 {
   "name": "Mscript",
   "displayName": ".mscript",
+  "publisher":"Momo-AUX1",
   "description": "Mscript language support",
   "version": "0.0.1",
   "engines": {

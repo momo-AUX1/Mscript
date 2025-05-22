@@ -16,7 +16,7 @@ The interpreter supports basic constructs such as:
 - Type conversion (str, int, type)
 - Built-in functions (input, str, int, type)
 
-version 0.7 (planned):
+version 0.7.5 (planned):
 - Add support for more built-in functions
 - Package manager
 
@@ -45,14 +45,15 @@ import sys
 import platform
 import os
 from lark.exceptions import UnexpectedInput
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mscript_builtins import builtins as _b
 sys.tracebacklimit = 0
 
-__VERSION__ = "0.5.2"
+__VERSION__ = "0.6.0"
 __AUTHOR__  = "Momo-AUX1"
 __DATE__    = "2025-05-21"
 
-language_definition = open("language.def").read()
+language_definition = open(os.path.join(os.path.dirname(__file__), "language.def")).read()
 
 def _wrap_error_with_loc(method):
     def wrapper(self, tree):
@@ -637,35 +638,71 @@ class MscriptInterpreter(LarkInterpreter):
             raise type(e)(f"{loc} {str(e).replace(loc, "")}")
 
 
-if __name__ == '__main__':
-    argv = sys.argv
 
-    if len(argv) > 5:
-        raise Exception(f"Too many arguments expected {len(argv)-2} got {len(argv) - 1}")
-    
-    if argv[1] == "--version":
-        print(f"Mscript Interpreter version {__VERSION__} by {__AUTHOR__} ({__DATE__}) ({platform.system()})")
-        sys.exit(0)
+def main():
+        argv = sys.argv
+        if len(argv) == 1:
+            parser = Lark(language_definition,
+                      parser='lalr',
+                      propagate_positions=True)
+            interp = MscriptInterpreter(filename="<repl>")
+            print(f"Mscript REPL {__VERSION__} by {__AUTHOR__} (type Ctrl-D to exit)")
+            try:
+                while True:
+                    try:
+                        line = input(">>> ")
+                    except EOFError:
+                        print()  
+                        break
+                    if not line.strip():
+                        continue
+                    try:
+                        tree = parser.parse(line)
+                        result = interp.visit(tree)
+                        if result is not None:
+                            print(result)
+                    except Exception as e:
+                        print(e)
+            except KeyboardInterrupt:
+                print()  
+            sys.exit(0)
 
-    if not argv[1].endswith(".mscript"):
-        raise Exception(f"Mscript files must end in .mscript suffix and be the first argument. Got: {argv[1]}")
+        if len(argv) > 5:
+            raise Exception(f"Too many arguments expected {len(argv)-2} got {len(argv) - 1}")
     
-    parser = Lark(language_definition,
+        if argv[1] == "--version":
+            print(f"Mscript Interpreter version {__VERSION__} by {__AUTHOR__} ({__DATE__}) ({platform.system()})")
+            sys.exit(0)
+
+        if not argv[1].endswith(".mscript"):
+            raise Exception(f"Mscript files must end in .mscript suffix and be the first argument. Got: {argv[1]}")
+    
+        parser = Lark(language_definition,
                   parser='lalr',
                   propagate_positions=True)
-    try:
-        text = open(argv[1]).read()
-        tree = parser.parse(text)
-    except UnexpectedInput as e:
-        print(f"{argv[1]}:{e.line}:{e.column}: Syntax error: {e}")
+        try:
+            text = open(argv[1]).read()
+            tree = parser.parse(text)
+        except UnexpectedInput as e:
+            print(f"{argv[1]}:{e.line}:{e.column}: Syntax error: {e}")
+            sys.exit(1)
+
+        interp = MscriptInterpreter(filename=argv[1])
+        try:
+            interp.visit(tree)
+        except Exception as e:
+            print(e)
+        if "--debug" in argv:
+            print(tree.pretty(f"{argv[len(argv)-1] if argv[len(argv)-2] == '--debug' else ""}"))
+    
         sys.exit(1)
 
-    interp = MscriptInterpreter(filename=argv[1])
-    try:
-        interp.visit(tree)
-    except Exception as e:
-        print(e)
-    if "--debug" in argv:
-        print(tree.pretty(f"{argv[len(argv)-1] if argv[len(argv)-2] == '--debug' else ""}"))
-    
-    sys.exit(1)
+
+
+
+if __name__ == '__main__':
+    main()
+
+
+def __main__():
+    return main()

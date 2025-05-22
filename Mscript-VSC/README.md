@@ -1,0 +1,3 @@
+# Mscript README
+
+**Enjoy!**

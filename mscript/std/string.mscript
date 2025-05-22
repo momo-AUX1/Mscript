@@ -1,0 +1,41 @@
+# string.mscript 
+
+def upper(s) {
+    return _string_upper(s)
+}
+
+def lower(s) {
+    return _string_lower(s)
+}
+
+def strip(s, chars) {
+    return _string_strip(s, chars)
+}
+
+def lstrip(s, chars) {
+    return _string_lstrip(s, chars)
+}
+
+def rstrip(s, chars) {
+    return _string_rstrip(s, chars)
+}
+
+def find(s, sub) {
+    return _string_find(s, sub)
+}
+
+def replace(s, old, new, count) {
+    return _string_replace(s, old, new, count)
+}
+
+def split(s, sep) {
+    return _string_split(s, sep)
+}
+
+def join(seq, sep) {
+    return _string_join(seq, sep)
+}
+
+def substring(s, start, end) {
+    return _string_substring(s, start, end)
+}

@@ -1,6 +1,6 @@
 # test_event.mscript
 
-import "ffi"
+import "std/ffi"
 
 # 1. Load the SDL2 shared library
 SDL = ffi.load("libSDL2.dylib")
