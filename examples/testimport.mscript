@@ -1,5 +1,6 @@
 # testimport.mscript
 
+import python
 
 
 def hello() {

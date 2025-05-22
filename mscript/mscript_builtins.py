@@ -23,6 +23,11 @@ def builtin_int(x):
 def builtin_type(x):
     return type(x).__name__
 
+def builtin_range(start, end):
+    if not (isinstance(start, int) and isinstance(end, int)):
+        raise TypeError("range() integer arguments expected")
+    return list(__builtins__['range'](start, end))
+
 def builtin_bytes(v, encoding=None):
     if encoding is None:
         if isinstance(v, str):
@@ -384,6 +389,7 @@ builtins = {
     'set_attr':    builtin_set_attr,
     'has_attr':    builtin_has_attr,
     'del_attr':    builtin_del_attr,
+    'range':       builtin_range,
 
     # math (internal)
     '_sin':         builtin_sin,
