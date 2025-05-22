@@ -64,6 +64,8 @@ continue_stmt: "continue"  -> continue_stmt
       | expr "in" expr    -> in_op
       | expr ">" term     -> gt
       | expr "<" term     -> lt
+      | expr ">=" term    -> ge
+      | expr "<=" term    -> le
       | expr "==" term    -> eq
       | expr "!=" term    -> ne
       | expr "+" term     -> add

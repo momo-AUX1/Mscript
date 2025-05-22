@@ -15,6 +15,14 @@ The interpreter supports basic constructs such as:
 - Lists and dictionaries
 - Type conversion (str, int, type)
 - Built-in functions (input, str, int, type)
+- Error handling (try/except)
+- Importing modules
+- Dotted names for attributes and methods
+- Support for Python built-in functions
+- Support for Python modules
+- Support for Python objects
+- Support for Python functions
+- Support for Python classes
 
 version 0.7.5 (planned):
 - Add support for more built-in functions
@@ -49,7 +57,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mscript_builtins import builtins as _b
 sys.tracebacklimit = 0
 
-__VERSION__ = "0.6.0"
+__VERSION__ = "0.7.0"
 __AUTHOR__  = "Momo-AUX1"
 __DATE__    = "2025-05-21"
 
@@ -327,23 +335,56 @@ class MscriptInterpreter(LarkInterpreter):
     def func_call(self, tree):
         """Evaluate a function call."""
         node = tree.children[0]
-        if isinstance(node, Tree) and node.data not in ("dotted_name", "dotted_name_expr"):
-            callee = self.visit(node)
-            name = None
+        if isinstance(node, Tree) and node.data in ("dotted_name", "dotted_name_expr"):
+            parts = [str(tok) for tok in node.children]
+        
+            if len(parts) == 2:  
+                obj_name, method_name = parts
+                if obj_name in self.env:
+                    obj = self.env[obj_name]
+                    if hasattr(obj, method_name):
+                        method = getattr(obj, method_name)
+                        if callable(method):
+                            arg_trees = (
+                                tree.children[1].children
+                                if len(tree.children) > 1
+                                and isinstance(tree.children[1], Tree)
+                                and tree.children[1].data == 'args'
+                                else []
+                            )
+                            arg_vals = [self.visit(a) for a in arg_trees]
+                            return method(*arg_vals)
+                elif obj_name in self.global_env:
+                    obj = self.global_env[obj_name]
+                    if hasattr(obj, method_name):
+                        method = getattr(obj, method_name)
+                        if callable(method):
+                            arg_trees = (
+                                tree.children[1].children
+                                if len(tree.children) > 1
+                                and isinstance(tree.children[1], Tree)
+                                and tree.children[1].data == 'args'
+                                else []
+                            )
+                            arg_vals = [self.visit(a) for a in arg_trees]
+                            return method(*arg_vals)
+        
+            name = ".".join(parts)
+            callee = self.env.get(name, self.global_env.get(name, None))
         else:
-            if isinstance(node, Tree):
-                parts = [str(tok) for tok in node.children]
-                name = ".".join(parts)
+            if isinstance(node, Tree) and node.data not in ("dotted_name", "dotted_name_expr"):
+                callee = self.visit(node)
+                name = None
             else:
                 name = str(node)
-            callee = self.env.get(name, self.global_env.get(name, None))
+                callee = self.env.get(name, self.global_env.get(name, None))
 
         if callable(callee):
             arg_trees = (
                 tree.children[1].children
                 if len(tree.children) > 1
-                   and isinstance(tree.children[1], Tree)
-                   and tree.children[1].data == 'args'
+                and isinstance(tree.children[1], Tree)
+                and tree.children[1].data == 'args'
                 else []
             )
             arg_vals = [self.visit(a) for a in arg_trees]
@@ -365,8 +406,8 @@ class MscriptInterpreter(LarkInterpreter):
             arg_trees = (
                 tree.children[1].children
                 if len(tree.children) > 1
-                   and isinstance(tree.children[1], Tree)
-                   and tree.children[1].data == 'args'
+                and isinstance(tree.children[1], Tree)
+                and tree.children[1].data == 'args'
                 else []
             )
             arg_vals = [self.visit(a) for a in arg_trees]
@@ -376,8 +417,8 @@ class MscriptInterpreter(LarkInterpreter):
             arg_trees = (
                 tree.children[1].children
                 if len(tree.children) > 1
-                   and isinstance(tree.children[1], Tree)
-                   and tree.children[1].data == 'args'
+                and isinstance(tree.children[1], Tree)
+                and tree.children[1].data == 'args'
                 else []
             )
             arg_vals = [self.visit(a) for a in arg_trees]
@@ -444,6 +485,12 @@ class MscriptInterpreter(LarkInterpreter):
     
     @_wrap_error_with_loc
     def pow(self, tree): return self.visit(tree.children[0]) ** self.visit(tree.children[1])
+
+    @_wrap_error_with_loc
+    def le(self, tree): return self.visit(tree.children[0]) <= self.visit(tree.children[1])
+
+    @_wrap_error_with_loc
+    def ge(self, tree): return self.visit(tree.children[0]) >= self.visit(tree.children[1])
 
     @_wrap_error_with_loc
     def number(self, tree):
@@ -593,10 +640,17 @@ class MscriptInterpreter(LarkInterpreter):
             raise type(e)(f"{loc}: error importing '{module_name}' ({module_file}): {e}")
 
         self.global_env[module_name] = sub.global_env
+    
         for fname, (params, block) in sub.functions.items():
             self.functions[f"{module_name}.{fname}"] = (params, block)
-
-
+    
+        for key, value in sub.global_env.items():
+            if key not in self.global_env:  
+                self.global_env[key] = value
+            
+        for fname, func_data in sub.functions.items():
+            if fname not in self.functions:
+                self.functions[fname] = func_data
     
     def dotted_name_expr(self, tree):
         """Resolve a dotted name expression."""
