@@ -1,0 +1,50 @@
+# math.mscript
+
+import python
+
+PI = python.math.pi
+E = python.math.e
+
+def sin(x) {
+    return _sin(x)
+}
+
+def cos(x) {
+    return _cos(x)
+}
+
+def tan(x) {
+    return _tan(x)
+}
+
+def log(x, base) {
+    if (base == None) {
+        return _log(x)
+    } else {
+        return _log(x, base)
+    }
+}
+
+def log10(x) {
+    return _log10(x)
+}
+
+def exp(x) {
+    return _exp(x)
+}
+
+def sqrt(x) {
+    return _sqrt(x)
+}
+
+def floor(x) {
+    return _floor(x)
+}
+
+def ceil(x) {
+    return _ceil(x)
+}
+
+def pow(x, y) {
+    return _pow(x, y)
+}

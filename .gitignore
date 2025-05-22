@@ -1,2 +1,4 @@
 *.mscript
 test.json
+
+!std/*.mscript

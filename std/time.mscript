@@ -1,0 +1,9 @@
+# time.mscript
+
+def sleep(seconds) {
+    _sleep(seconds)
+}
+
+def time() {
+    return _time()
+}

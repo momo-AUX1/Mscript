@@ -31,6 +31,7 @@ try_stmt     : "try" block catch_clause     -> try_stmt
 
 import_stmt  : "import" NAME                       -> import_stmt
              | "import" dotted_name                -> import_stmt
+             | "import" ESCAPED_STRING             -> import_stmt
 
 index_assign : factor "[" expr "]" "=" expr   -> index_assign
 assign       : NAME "=" expr                  -> assign
@@ -77,8 +78,9 @@ continue_stmt: "continue"  -> continue_stmt
 ?power: factor
       | factor "**" power -> pow
 
-?factor: factor "[" expr "]"  -> get_item
-       | factor "." NAME     -> get_attr
+?factor: factor "[" expr "]"      -> get_item
+       | factor "." NAME         -> get_attr
+       | factor "(" [args] ")"   -> func_call
        | atom
 
 ?atom: input_expr

@@ -1,0 +1,16 @@
+# datetime.mscript
+def today() {
+    return _date_today()
+}
+
+def now() {
+    return _datetime_now()
+}
+
+def strftime(dt, fmt) {
+    return _strftime(dt, fmt)
+}
+
+def parse(dt_str, fmt) {
+    return _parse_date(dt_str, fmt)
+}

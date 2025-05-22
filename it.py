@@ -1,3 +1,5 @@
+# it.py 
+
 """
 it.py - Interpreter for the Mscript language.
 This module defines the MscriptInterpreter class, which interprets
@@ -14,7 +16,11 @@ The interpreter supports basic constructs such as:
 - Type conversion (str, int, type)
 - Built-in functions (input, str, int, type)
 
-version 0.5 (planned):
+version 0.7 (planned):
+- Add support for more built-in functions
+- Package manager
+
+version 0.5:
 - True STD library
 
 version 0.4 :
@@ -39,9 +45,10 @@ import sys
 import platform
 import os
 from lark.exceptions import UnexpectedInput
+from mscript_builtins import builtins as _b
 sys.tracebacklimit = 0
 
-__VERSION__ = "0.4.6"
+__VERSION__ = "0.5.2"
 __AUTHOR__  = "Momo-AUX1"
 __DATE__    = "2025-05-21"
 
@@ -73,6 +80,37 @@ class ContinueException(Exception):
     """Unwind loop with a continue."""
     pass
 
+class FunctionRef:
+    """A first-class Mscript function."""
+    def __init__(self, name, params, block, interpreter):
+        self.name        = name
+        self.params      = params
+        self.block       = block
+        self.interpreter = interpreter
+
+    def __call__(self, *arg_vals):
+        interp    = self.interpreter
+        params, block = self.params, self.block
+
+        if len(arg_vals) != len(params):
+            raise TypeError(f"{self.name}() expects {len(params)} args, got {len(arg_vals)}")
+
+        old_env      = interp.env
+        interp.env   = {}
+        for pname, pval in zip(params, arg_vals):
+            interp.env[pname] = pval
+
+        result = None
+        for stmt in block.children:
+            try:
+                interp.visit(stmt)
+            except ReturnException as ret:
+                result = ret.value
+                break
+
+        interp.env = old_env
+        return result
+
 class MscriptInterpreter(LarkInterpreter):
     """Interpreter for the Mscript language."""
     def __init__(self, filename="<string>"):
@@ -81,6 +119,16 @@ class MscriptInterpreter(LarkInterpreter):
         self.env        = self.global_env
         self.functions  = {}
         self.filename   = filename
+        self.call_stack = []
+        self.builtins = _b.copy()
+
+
+    def __getattr__(self, attr):
+        fullname = f"{self.name}.{attr}"
+        if fullname in self.interpreter.functions:
+            params, block = self.interpreter.functions[fullname]
+            return FunctionRef(fullname, params, block, self.interpreter)
+        raise AttributeError(f"'{self.name}' object has no attribute '{attr}'")
 
     def _dispatch_userfunc(self, tree, func):
         """Wrap every node-visit to attach file/line/col on errors."""
@@ -251,6 +299,7 @@ class MscriptInterpreter(LarkInterpreter):
     def func_def(self, tree):
         """Define a function."""
         name_tok = tree.children[0]
+        name     = str(name_tok)
         params = []
         block  = None
         for child in tree.children[1:]:
@@ -263,189 +312,75 @@ class MscriptInterpreter(LarkInterpreter):
         if block is None:
             raise SyntaxError(f"Function ‘{name_tok}’ has no body")
 
-        self.functions[str(name_tok)] = (params, block)
+        if self.call_stack:
+            parent = self.call_stack[-1]
+            fullname = f"{parent}.{name}"
+            self.functions[fullname] = (params, block)
+            parent_ref = self.global_env[parent]
+            setattr(parent_ref, name, FunctionRef(fullname, params, block, self))
+        else:
+            fullname = name
+            self.functions[fullname] = (params, block)
+            self.global_env[fullname] = FunctionRef(fullname, params, block, self)
 
     def func_call(self, tree):
         """Evaluate a function call."""
         node = tree.children[0]
-        if isinstance(node, Tree) and node.data in ("dotted_name", "dotted_name_expr"):
-            parts = [str(tok) for tok in node.children]
-            name  = ".".join(parts)
+        if isinstance(node, Tree) and node.data not in ("dotted_name", "dotted_name_expr"):
+            callee = self.visit(node)
+            name = None
         else:
-            name  = str(node)
-        
-        if name.startswith("python."):
+            if isinstance(node, Tree):
+                parts = [str(tok) for tok in node.children]
+                name = ".".join(parts)
+            else:
+                name = str(node)
+            callee = self.env.get(name, self.global_env.get(name, None))
+
+        if callable(callee):
+            arg_trees = (
+                tree.children[1].children
+                if len(tree.children) > 1
+                   and isinstance(tree.children[1], Tree)
+                   and tree.children[1].data == 'args'
+                else []
+            )
+            arg_vals = [self.visit(a) for a in arg_trees]
+
+            if isinstance(callee, FunctionRef):
+                self.call_stack.append(callee.name)
+                try:
+                    return callee(*arg_vals)
+                finally:
+                    self.call_stack.pop()
+
+            return callee(*arg_vals)
+
+        if name and name.startswith("python."):
             parts = name.split(".")
-            obj   = self.global_env.get(parts[0])
+            obj = self.global_env.get(parts[0])
             for attr in parts[1:]:
                 obj = getattr(obj, attr)
-            arg_trees = (tree.children[1].children
-                         if len(tree.children)>1
-                            and isinstance(tree.children[1], Tree)
-                            and tree.children[1].data=='args'
-                         else [])
+            arg_trees = (
+                tree.children[1].children
+                if len(tree.children) > 1
+                   and isinstance(tree.children[1], Tree)
+                   and tree.children[1].data == 'args'
+                else []
+            )
             arg_vals = [self.visit(a) for a in arg_trees]
             return obj(*arg_vals)
-        
-        if name == 'input':
-            args = (tree.children[1].children
-                    if len(tree.children)>1 and isinstance(tree.children[1], Tree) and tree.children[1].data=='args' else [])            
-            if len(args) != 1:
-                raise TypeError(f"input() expects 1 arg, got {len(args)}")
-            prompt = self.visit(args[0])
-            return input(str(prompt))
 
-        if name == 'str':
-            args = (tree.children[1].children
-                    if len(tree.children)>1 and isinstance(tree.children[1], Tree) and tree.children[1].data=='args'
-                    else [])
-            if len(args) != 1:
-                raise TypeError(f"str() expects 1 arg, got {len(args)}")
-            return str(self.visit(args[0]))
-
-        if name == 'int':
-            args = (tree.children[1].children
-                    if len(tree.children)>1 and isinstance(tree.children[1], Tree) and tree.children[1].data=='args'
-                    else [])
-            if len(args) != 1:
-                raise TypeError(f"int() expects 1 arg, got {len(args)}")
-            return int(self.visit(args[0]))
-
-        if name == 'type':
-            args = (tree.children[1].children
-                    if len(tree.children)>1 and isinstance(tree.children[1], Tree) and tree.children[1].data=='args'
-                    else [])
-            if len(args) != 1:
-                raise TypeError(f"type() expects 1 arg, got {len(args)}")
-            val = self.visit(args[0])
-            return type(val).__name__
-        
-        if name == 'bytes':
-            arg_nodes = (tree.children[1].children
-                         if len(tree.children)>1
-                            and isinstance(tree.children[1], Tree)
-                            and tree.children[1].data=='args'
-                         else [])
-            vals = [self.visit(n) for n in arg_nodes]
-            if len(vals) == 1:
-                v = vals[0]
-                if isinstance(v, str):
-                    return v.encode()
-                return bytes(v)
-            elif len(vals) == 2:
-                s, enc = vals
-                if not isinstance(s, str) or not isinstance(enc, str):
-                    raise TypeError('bytes(str, encoding) args must be (str, str)')
-                return s.encode(enc)
-            else:
-                raise TypeError(f"bytes() expects 1 or 2 args, got {len(vals)}")
-
-        if name == 'encode':
-            arg_nodes = (tree.children[1].children
-                         if len(tree.children)>1
-                            and isinstance(tree.children[1], Tree)
-                            and tree.children[1].data=='args'
-                         else [])
-            vals = [self.visit(n) for n in arg_nodes]
-            if len(vals) == 1:
-                s = vals[0]
-                if not isinstance(s, str):
-                    raise TypeError('encode() first arg must be a string')
-                return s.encode()
-            elif len(vals) == 2:
-                s, enc = vals
-                if not isinstance(s, str) or not isinstance(enc, str):
-                    raise TypeError('encode() args must be (str, str)')
-                return s.encode(enc)
-            else:
-                raise TypeError(f"encode() expects 1 or 2 args, got {len(vals)}")
-        
-        if name == 'read':
-            arg_nodes = (tree.children[1].children
-                         if len(tree.children)>1
-                            and isinstance(tree.children[1], Tree)
-                            and tree.children[1].data=='args'
-                         else [])
-            args = [self.visit(n) for n in arg_nodes]
-            if len(args) == 1:
-                filename = args[0]
-                with open(filename, 'r') as f:
-                    return f.read()
-            elif len(args) == 2:
-                filename, mode = args
-                if mode in ('b','bytes','rb'):
-                    with open(filename, 'rb') as f:
-                        return f.read()
-                else:
-                    with open(filename, 'r') as f:
-                        return f.read()
-            else:
-                raise TypeError(f"read() expects 1 or 2 args, got {len(args)}")
-
-        if name == 'write':
-            arg_nodes = (tree.children[1].children
-                         if len(tree.children)>1
-                            and isinstance(tree.children[1], Tree)
-                            and tree.children[1].data=='args'
-                         else [])
-            args = [self.visit(n) for n in arg_nodes]
-            if len(args) != 2:
-                raise TypeError(f"write() expects 2 args, got {len(args)}")
-            filename, data = args
-            mode = 'wb' if isinstance(data, (bytes, bytearray)) else 'w'
-            with open(filename, mode) as f:
-                return f.write(data)
-        
-        if name == 'decode':
-            arg_nodes = (tree.children[1].children
-                         if len(tree.children)>1
-                            and isinstance(tree.children[1], Tree)
-                            and tree.children[1].data=='args'
-                         else [])
-            vals = [self.visit(n) for n in arg_nodes]
-            if len(vals) == 1:
-                b = vals[0]
-                if not isinstance(b, (bytes, bytearray)):
-                    raise TypeError('decode() first arg must be bytes')
-                return b.decode()
-            elif len(vals) == 2:
-                b, enc = vals
-                if not isinstance(b, (bytes, bytearray)) or not isinstance(enc, str):
-                    raise TypeError('decode() args must be (bytes, str)')
-                return b.decode(enc)
-            else:
-                raise TypeError(f"decode() expects 1 or 2 args, got {len(vals)}")
-
-        if name == 'system':
-            arg_nodes = (tree.children[1].children
-                         if len(tree.children)>1
-                            and isinstance(tree.children[1], Tree)
-                            and tree.children[1].data=='args'
-                         else [])
-            vals = [self.visit(n) for n in arg_nodes]
-            if len(vals) != 1:
-                raise TypeError(f"system() expects 1 arg, got {len(vals)}")
-            cmd = vals[0]
-            os.system(str(cmd))
-            return 
-        
-        if name in ('len','keys','values'):
-            args = (tree.children[1].children
-                    if len(tree.children)>1 and isinstance(tree.children[1], Tree) and tree.children[1].data=='args'
-                    else [])
-            if len(args) != 1:
-                raise TypeError(f"{name}() expects 1 arg, got {len(args)}")
-            obj = self.visit(args[0])
-            if name == 'len':
-                return len(obj)
-            if name == 'keys':
-                if not isinstance(obj, dict):
-                    raise TypeError("keys() expects a dict")
-                return list(obj.keys())
-            if name == 'values':
-                if not isinstance(obj, dict):
-                    raise TypeError("values() expects a dict")
-                return list(obj.values())
+        if name in self.builtins:
+            arg_trees = (
+                tree.children[1].children
+                if len(tree.children) > 1
+                   and isinstance(tree.children[1], Tree)
+                   and tree.children[1].data == 'args'
+                else []
+            )
+            arg_vals = [self.visit(a) for a in arg_trees]
+            return self.builtins[name](*arg_vals)
 
         if len(tree.children) > 1 and isinstance(tree.children[1], Tree) and tree.children[1].data == 'args':
             arg_trees = tree.children[1].children
@@ -454,26 +389,18 @@ class MscriptInterpreter(LarkInterpreter):
 
         if name not in self.functions:
             meta = getattr(tree, "meta", None)
-            if meta:
-                loc = f"{self.filename}:{meta.line}:{meta.column}"
-            else:
-                loc = self.filename
+            loc = f"{self.filename}:{meta.line}:{meta.column}" if meta else self.filename
             raise NameError(f"{loc}: Function '{name}' is not defined.")
+
         params, block = self.functions[name]
         if len(params) != len(arg_trees):
             meta = getattr(tree, "meta", None)
-            if meta:
-                loc = f"{self.filename}:{meta.line}:{meta.column}"
-            else:
-                loc = self.filename
+            loc = f"{self.filename}:{meta.line}:{meta.column}" if meta else self.filename
             raise TypeError(f"{loc}: {name}() expects {len(params)} args, got {len(arg_trees)}")
 
         arg_vals = [self.visit(a) for a in arg_trees]
-
-        old_env    = self.env
-        self.env   = {}
-        for pname, pval in zip(params, arg_vals):
-            self.env[pname] = pval
+        old_env = self.env
+        self.env = { pname: pval for pname, pval in zip(params, arg_vals) }
 
         result = None
         for stmt in block.children:
@@ -485,6 +412,7 @@ class MscriptInterpreter(LarkInterpreter):
 
         self.env = old_env
         return result
+
 
     @_wrap_error_with_loc
     def add(self, tree): return self.visit(tree.children[0]) + self.visit(tree.children[1])
@@ -530,8 +458,7 @@ class MscriptInterpreter(LarkInterpreter):
     def bytes_literal(self, tree):  return ast.literal_eval(str(tree.children[0]))
 
     def var(self, tree):
-        """Get the value of a variable, or report its undefinition with file:line:col."""
-        tok  = tree.children[0]       
+        tok  = tree.children[0]
         name = str(tok)
         if name in self.env:
             return self.env[name]
@@ -608,13 +535,29 @@ class MscriptInterpreter(LarkInterpreter):
     def import_stmt(self, tree):
         """Import a module or a function from a module."""
         node = tree.children[0]
-        if isinstance(node, Tree) and node.data == 'dotted_name':
-            names = [str(tok) for tok in node.children]
-            name  = ".".join(names)
-        else:
-            name  = str(node)
 
-        if name == "python":
+        if isinstance(node, Token) and node.type == 'ESCAPED_STRING':
+            raw_path = ast.literal_eval(str(node))
+            module_name = os.path.splitext(os.path.basename(raw_path))[0]
+
+            if raw_path.startswith('std/'):
+                base_dir   = os.path.dirname(__file__)
+                std_dir    = os.path.join(base_dir, 'std')
+                rel_path   = raw_path.split('/', 1)[1]
+                module_file = os.path.join(std_dir, rel_path + '.mscript')
+            else:
+                module_file = raw_path if raw_path.endswith('.mscript') else raw_path + '.mscript'
+
+        else:
+            if isinstance(node, Tree) and node.data == 'dotted_name':
+                parts       = [str(tok) for tok in node.children]
+                module_name = ".".join(parts)
+                module_file = os.path.join(*parts) + '.mscript'
+            else:
+                module_name = str(node)
+                module_file = f"{module_name}.mscript"
+
+        if module_name == "python" and not (isinstance(node, Token) and node.type == 'ESCAPED_STRING'):
             import importlib, builtins
             class PythonModuleProxy:
                 def __getattr__(self, attr):
@@ -622,44 +565,37 @@ class MscriptInterpreter(LarkInterpreter):
                         return getattr(builtins, attr)
                     return importlib.import_module(attr)
             self.global_env["python"] = PythonModuleProxy()
-        else:
-            from lark import Lark, UnexpectedInput
-            module_file = f"{name}.mscript"
+            return
 
-            parser = Lark(language_definition,
-                          parser='lalr',
-                          propagate_positions=True)
-            try:
-                text = open(module_file).read()
-            except FileNotFoundError:
-                meta = getattr(tree, "meta", None)
-                if meta:
-                    loc = f"{self.filename}:{meta.line}:{meta.column}"
-                else:
-                    loc = self.filename
-                raise SyntaxError(f"{loc}: Module '{name}' not found (could not open '{module_file}')")
-            try:
-                tree2 = parser.parse(text)
-            except UnexpectedInput as e:
-                raise SyntaxError(f"{module_file}:{e.line}:{e.column}: "
-                                  f"Syntax error in imported module")
+        from lark import Lark, UnexpectedInput
+        parser = Lark(language_definition,
+                      parser='lalr',
+                      propagate_positions=True)
+        try:
+            text = open(module_file, 'r').read()
+        except FileNotFoundError:
+            meta = getattr(tree, "meta", None)
+            loc  = f"{self.filename}:{meta.line}:{meta.column}" if meta else self.filename
+            raise SyntaxError(f"{loc}: Module '{module_file}' not found (could not open '{module_file}')")
 
-            sub = MscriptInterpreter(filename=module_file)
-            try:
-                sub.visit(tree2)
-            except Exception as e:
-                meta = getattr(tree, "meta", None)
-                if meta:
-                    loc = f"{self.filename}:{meta.line}:{meta.column}"
-                else:
-                    loc = self.filename
-                raise type(e)(
-                    f"{loc}: error importing '{name}' ({module_file}): {e}"
-                )
+        try:
+            tree2 = parser.parse(text)
+        except UnexpectedInput as e:
+            raise SyntaxError(f"{module_file}:{e.line}:{e.column}: Syntax error in imported module")
 
-            self.global_env[name] = sub.global_env
-            for fname, (params, block) in sub.functions.items():
-                self.functions[f"{name}.{fname}"] = (params, block)
+        sub = MscriptInterpreter(filename=module_file)
+        try:
+            sub.visit(tree2)
+        except Exception as e:
+            meta = getattr(tree, "meta", None)
+            loc  = f"{self.filename}:{meta.line}:{meta.column}" if meta else self.filename
+            raise type(e)(f"{loc}: error importing '{module_name}' ({module_file}): {e}")
+
+        self.global_env[module_name] = sub.global_env
+        for fname, (params, block) in sub.functions.items():
+            self.functions[f"{module_name}.{fname}"] = (params, block)
+
+
     
     def dotted_name_expr(self, tree):
         """Resolve a dotted name expression."""
@@ -705,7 +641,7 @@ if __name__ == '__main__':
     argv = sys.argv
 
     if len(argv) > 5:
-        raise Exception(f"Too many arguments expected 2 got {len(argv) - 1}")
+        raise Exception(f"Too many arguments expected {len(argv)-2} got {len(argv) - 1}")
     
     if argv[1] == "--version":
         print(f"Mscript Interpreter version {__VERSION__} by {__AUTHOR__} ({__DATE__}) ({platform.system()})")

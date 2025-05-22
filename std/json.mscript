@@ -1,0 +1,14 @@
+# json.mscript
+
+def loads(s) {
+    return _json_loads(s)
+}
+
+def dumps(obj, indent) {
+    if indent == None {
+        return _json_dumps(obj)
+    }
+    else {
+        return _json_dumps(obj, indent)
+    }
+}

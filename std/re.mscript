@@ -1,0 +1,17 @@
+# re.mscript
+
+def search(pattern, text) {
+    return _re_search(pattern, text)
+}
+
+def match(pattern, text) {
+    return _re_match(pattern, text)
+}
+
+def findall(pattern, text) {
+    return _re_findall(pattern, text)
+}
+
+def sub(pattern, repl, text) {
+    return _re_sub(pattern, repl, text)
+}

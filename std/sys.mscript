@@ -1,0 +1,21 @@
+# sys.mscript
+
+def argv() {
+    return _argv()
+}
+
+def getenv(name, default) {
+    return _getenv(name, default)
+}
+
+def setenv(name, value) {
+    _setenv(name, value)
+}
+
+def unsetenv(name) {
+    _unsetenv(name)
+}
+
+#def exit(code) {
+#    exit(code)
+#}
