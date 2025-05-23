@@ -57,7 +57,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mscript_builtins import builtins as _b
 sys.tracebacklimit = 0
 
-__VERSION__ = "0.7.2"
+__VERSION__ = "0.7.4"
 __AUTHOR__  = "Momo-AUX1"
 __DATE__    = "2025-05-21"
 
