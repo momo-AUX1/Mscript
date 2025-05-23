@@ -16,11 +16,11 @@
     },
     {
       "name": "constant.language.mscript",
-      "match": "\\b(true|false|None)\\b"
+      "match": "\\b(true|false|None|not)\\b"
     },
     {
       "name": "keyword.control.mscript",
-      "match": "\\b(if|else|while|for|return|def|in|or|elif|import|try|catch|break|not)\\b"
+      "match": "\\b(if|else|while|for|return|def|in|or|elif|import|try|catch|break)\\b"
     },
     {
       "name": "entity.name.function.definition.mscript",

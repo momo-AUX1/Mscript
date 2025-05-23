@@ -20,6 +20,9 @@ def builtin_str(x):
 def builtin_int(x):
     return int(x)
 
+def builtin_float(x):
+    return float(x)
+
 def builtin_type(x):
     return type(x).__name__
 
@@ -376,6 +379,7 @@ builtins = {
     'input':       builtin_input,
     'str':         builtin_str,
     'int':         builtin_int,
+    'float':       builtin_float,
     'type':        builtin_type,
     'bytes':       builtin_bytes,
     'encode':      builtin_encode,
@@ -438,7 +442,7 @@ builtins = {
     "_ffi_buffer":       builtin_ffi_buffer,
     "_ffi_buffer_ptr":   builtin_ffi_buffer_ptr,
     "_ffi_read_uint32":  builtin_ffi_read_uint32,
-     "_ffi_buffer_offset":    builtin_ffi_buffer_offset,
+    "_ffi_buffer_offset":    builtin_ffi_buffer_offset,
     "_ffi_read_uint8":       builtin_ffi_read_uint8,
     "_ffi_read_int8":        builtin_ffi_read_int8,
     "_ffi_read_uint16":      builtin_ffi_read_uint16,

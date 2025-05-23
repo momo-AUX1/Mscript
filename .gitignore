@@ -14,3 +14,4 @@ pyproject.toml
 setup.py
 MANIFEST.in
 .DS_Store
+todo/

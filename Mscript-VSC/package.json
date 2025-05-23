@@ -4,6 +4,9 @@
   "publisher":"Momo-AUX1",
   "description": "Mscript language support",
   "version": "0.0.2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/momo-AUX1/Mscript"},
   "engines": {
     "vscode": "^1.100.0"
   },
