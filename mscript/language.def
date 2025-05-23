@@ -1,6 +1,5 @@
 # language.def
 ?start: statement+
-
 ?statement: index_assign
           | assign
           | print_stmt
@@ -23,7 +22,6 @@ BYTES: /b"([^"\\]|\\.)*"/ | /b'([^'\\]|\\.)*'/
 
 dotted_name  : NAME ("." NAME)+
 
-
 catch_clause : "catch" "(" NAME ")" block   -> catch_clause
              | "catch" block                -> catch_clause
 
@@ -35,13 +33,11 @@ import_stmt  : "import" NAME                       -> import_stmt
 
 index_assign : factor "[" expr "]" "=" expr   -> index_assign
 assign       : NAME "=" expr                  -> assign
-
 print_stmt   : "print" expr ("," expr)*       -> print_stmt
 expr_stmt    : expr                           -> expr_stmt
+input_expr   : "input" ESCAPED_STRING -> input_expr
 
-input_expr: "input" ESCAPED_STRING -> input_expr
-
-return_stmt  : "return" expr                   -> return_stmt
+return_stmt  : "return" [expr]                -> return_stmt
 
 if_stmt      : "if" expr block ("elif" expr block)* ("else" block)?   -> if_stmt
 while_stmt   : "while" expr block              -> while_stmt
@@ -50,6 +46,7 @@ func_def     : "def" NAME "(" [params] ")" block-> func_def
 
 func_call    : NAME "(" [args] ")"             -> func_call
              | dotted_name "(" [args] ")"      -> func_call
+
 params       : NAME ("," NAME)*
 args         : expr ("," expr)*
 

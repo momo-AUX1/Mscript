@@ -20,7 +20,7 @@
     },
     {
       "name": "keyword.control.mscript",
-      "match": "\\b(if|else|while|for|return|def|in|or|elif|import|try|catch|break)\\b"
+      "match": "\\b(if|else|while|for|return|def|in|or|elif|import|try|catch|break|not)\\b"
     },
     {
       "name": "entity.name.function.definition.mscript",

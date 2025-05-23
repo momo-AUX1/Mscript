@@ -57,7 +57,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mscript_builtins import builtins as _b
 sys.tracebacklimit = 0
 
-__VERSION__ = "0.7.0"
+__VERSION__ = "0.7.2"
 __AUTHOR__  = "Momo-AUX1"
 __DATE__    = "2025-05-21"
 
@@ -200,7 +200,10 @@ class MscriptInterpreter(LarkInterpreter):
 
     def return_stmt(self, tree):
         """Return a value from a function."""
-        val = self.visit(tree.children[0])
+        if len(tree.children) > 0:
+            val = self.visit(tree.children[0])
+        else:
+            val = None  
         raise ReturnException(val)
 
     def if_stmt(self, tree):
