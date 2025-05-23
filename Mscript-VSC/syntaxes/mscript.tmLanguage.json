@@ -32,7 +32,7 @@
     },
     {
       "name": "support.function.mscript",
-      "match": "\\b(input|str|int|type|print|len|keys|values|bytes|encode)\\b"
+      "match": "\\b(input|str|int|type|print|len|bytes|encode)\\b"
     },
     {
       "name": "variable.mscript",

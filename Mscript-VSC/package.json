@@ -3,7 +3,7 @@
   "displayName": ".mscript",
   "publisher":"Momo-AUX1",
   "description": "Mscript language support",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "repository": {
     "type": "git",
     "url": "https://github.com/momo-AUX1/Mscript"},

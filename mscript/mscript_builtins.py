@@ -323,57 +323,6 @@ def builtin_random_seed(s):
     _py_random.seed(s)
     return None
 
-# ——— string operations —————————————————————————————————————————————
-def builtin_str_upper(s):
-    if not isinstance(s, str):
-        raise TypeError('upper() expects a string')
-    return s.upper()
-
-def builtin_str_lower(s):
-    if not isinstance(s, str):
-        raise TypeError('lower() expects a string')
-    return s.lower()
-
-def builtin_str_strip(s, chars=None):
-    if not isinstance(s, str):
-        raise TypeError('strip() expects a string')
-    return s.strip(chars) if chars is not None else s.strip()
-
-def builtin_str_lstrip(s, chars=None):
-    if not isinstance(s, str):
-        raise TypeError('lstrip() expects a string')
-    return s.lstrip(chars) if chars is not None else s.lstrip()
-
-def builtin_str_rstrip(s, chars=None):
-    if not isinstance(s, str):
-        raise TypeError('rstrip() expects a string')
-    return s.rstrip(chars) if chars is not None else s.rstrip()
-
-def builtin_str_find(s, sub):
-    if not isinstance(s, str) or not isinstance(sub, str):
-        raise TypeError('find() expects two strings')
-    return s.find(sub)
-
-def builtin_str_replace(s, old, new, count=-1):
-    if not isinstance(s, str) or not isinstance(old, str) or not isinstance(new, str):
-        raise TypeError('replace() expects three strings')
-    return s.replace(old, new, count)
-
-def builtin_str_split(s, sep=None):
-    if not isinstance(s, str):
-        raise TypeError('split() expects a string')
-    return s.split(sep)
-
-def builtin_str_join(seq, sep):
-    if not isinstance(sep, str):
-        raise TypeError('join() separator must be a string')
-    return sep.join(seq)
-
-def builtin_str_substring(s, start, end=None):
-    if not isinstance(s, str):
-        raise TypeError('substring() expects a string')
-    return s[start:end] if end is not None else s[start:]
-
 builtins = {
     # core
     'input':       builtin_input,
@@ -388,8 +337,6 @@ builtins = {
     'decode':      builtin_decode,
     'system':      builtin_system,
     'len':         builtin_len,
-    'keys':        builtin_keys,
-    'values':      builtin_values,
     'set_attr':    builtin_set_attr,
     'has_attr':    builtin_has_attr,
     'del_attr':    builtin_del_attr,
@@ -474,16 +421,4 @@ builtins = {
     "_random_choice":   builtin_random_choice,
     "_random_shuffle":  builtin_random_shuffle,
     "_random_seed":     builtin_random_seed,
-
-    # string (internal)
-    '_string_upper':     builtin_str_upper,
-    '_string_lower':     builtin_str_lower,
-    '_string_strip':     builtin_str_strip,
-    '_string_lstrip':    builtin_str_lstrip,
-    '_string_rstrip':    builtin_str_rstrip,
-    '_string_find':      builtin_str_find,
-    '_string_replace':   builtin_str_replace,
-    '_string_split':     builtin_str_split,
-    '_string_join':      builtin_str_join,
-    '_string_substring': builtin_str_substring,
 }
